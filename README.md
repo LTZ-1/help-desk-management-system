@@ -53,11 +53,11 @@ A modern, responsive department administration dashboard built with React, TypeS
 - **Sonner** for toast notifications
 
 ### **Backend Integration**
-- **Laravel** backend API
-- **Inertia.js** for seamless navigation
-- **RESTful API** endpoints
-- **JWT authentication**
-- **Real-time updates** support
+- **Laravel** MVC architecture with direct database queries
+- **Inertia.js** for seamless server-side rendering
+- **Eloquent ORM** for database operations
+- **Blade templates** with React components
+- **Direct controller methods** for data fetching
 
 ## 📁 Project Structure
 
@@ -184,24 +184,37 @@ APP_URL=http://localhost:8000
 - **Breakpoints**: Adjust in Tailwind config
 - **Components**: Extend ShadCN components
 
-## 📊 API Endpoints
+## 📊 Laravel Routes & Data Fetching
 
-### **Statistics**
-- `GET /dept-admin/statistics` - Department metrics
-- `GET /dept-admin/chart-data` - Chart data
+### **Dashboard Routes**
+- `GET /dashboard` - Main dashboard with server-side data
+- `GET /dashboard/data` - JSON data for dashboard components
+- `GET /dashboard/tickets` - Filtered tickets data
+- `GET /dashboard/chart-data` - Chart data with time filtering
 
-### **Tickets**
+### **Department Admin Routes**
+- `GET /dept-admin/dashboard` - Department admin dashboard
+- `GET /dept-admin/statistics` - Department statistics from database
+- `GET /dept-admin/chart-data` - Chart data with time ranges
 - `GET /dept-admin/tickets` - All department tickets
-- `GET /dept-admin/my-tickets` - User's tickets
-- `POST /Tickets/create` - Create new ticket
+- `GET /dept-admin/my-tickets` - User's assigned tickets
+- `POST /dept-admin/tickets/{ticket}/assign` - Assign ticket to resolver
+- `PUT /dept-admin/tickets/order` - Update ticket ordering
+- `GET /dept-admin/resolvers` - Department resolvers
+- `PUT /dept-admin/resolvers/{id}/status` - Update resolver status
+
+### **Ticket Management Routes**
+- `GET /tickets/create` - Create ticket form
+- `POST /tickets/store` - Store new ticket
 - `PUT /tickets/{id}` - Update ticket
 - `DELETE /tickets/{id}` - Delete ticket
+- `GET /tickets/{id}` - View ticket details
+- `POST /tickets/{id}/assign` - Assign ticket to resolver
 
-### **Resolvers**
-- `GET /dept-admin/resolvers` - Department resolvers
-- `POST /resolvers/create` - Add resolver
-- `PUT /resolvers/{id}` - Update resolver
-- `DELETE /resolvers/{id}` - Remove resolver
+### **Resolver Routes**
+- `GET /resolver/dashboard` - Resolver dashboard
+- `GET /resolver/tickets` - Resolver's assigned tickets
+- `GET /resolver/chart-data` - Resolver performance data
 
 ## 🎨 UI Components
 
@@ -226,11 +239,13 @@ APP_URL=http://localhost:8000
 
 ## 🔒 Security Features
 
-- **CSRF Protection** on all forms
-- **Input Validation** with sanitization
-- **Rate Limiting** on API endpoints
-- **Role-based Access Control**
+- **Laravel Authentication** with built-in session management
+- **CSRF Protection** on all forms via Laravel middleware
+- **Role-based Middleware** (admin, department.admin, resolver)
+- **Input Validation** with Laravel's validation rules
+- **Eloquent ORM** for SQL injection prevention
 - **Secure Headers** configuration
+- **Authorization Gates** for access control
 
 ## 🧪 Testing
 
@@ -246,6 +261,12 @@ php artisan test        # PHPUnit tests
 php artisan test:coverage # Coverage report
 ```
 
+### **Feature Tests**
+- **Dashboard Tests**: Verify dashboard data loading
+- **Ticket Routing Tests**: Test ticket assignment logic
+- **Authentication Tests**: Verify role-based access
+- **Department Tests**: Test department management features
+
 ### **E2E Testing**
 ```bash
 npm run test:e2e     # Playwright tests
@@ -257,9 +278,11 @@ npm run test:e2e:ui  # Visual testing
 ### **Optimizations**
 - **Code Splitting** for faster initial load
 - **Lazy Loading** for heavy components
-- **Image Optimization** with WebP support
-- **Caching Strategy** for API responses
-- **Bundle Analysis** for size optimization
+- **Laravel Query Optimization** with eager loading
+- **Database Indexing** for faster queries
+- **Inertia.js Lazy Props** for conditional data loading
+- **Asset Optimization** with Vite
+- **Caching Strategy** for database queries
 
 ### **Metrics**
 - **Lighthouse Score**: 95+
@@ -272,7 +295,10 @@ npm run test:e2e:ui  # Visual testing
 ### **Production Build**
 ```bash
 npm run build        # Optimize frontend assets
-php artisan optimize     # Optimize Laravel
+php artisan optimize     # Optimize Laravel for production
+php artisan config:cache  # Cache configuration
+php artisan route:cache   # Cache routes
+php artisan view:cache    # Cache views
 ```
 
 ### **Docker Deployment**
@@ -298,7 +324,9 @@ docker-compose logs -f  # View logs
 - **ESLint** for JavaScript/TypeScript
 - **Prettier** for code formatting
 - **PHPStan** for PHP code quality
+- **Laravel Pint** for PHP code formatting
 - **Type Safety** with strict TypeScript
+- **PSR Standards** for PHP code
 
 ## 📝 License
 
@@ -306,11 +334,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
+- **Laravel** for the amazing PHP framework
+- **Inertia.js** for seamless SPA-like experience
 - **ShadCN** for beautiful UI components
 - **Tailwind CSS** for utility-first CSS framework
 - **TanStack** for powerful table library
 - **Lucide** for icon set
 - **React** team for amazing framework
+- **Vite** for fast build tooling
 
 ## 📞 Support
 
