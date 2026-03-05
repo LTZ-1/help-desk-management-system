@@ -137,7 +137,7 @@ export default function Page() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               
-              {/* Welcome Message with User Info */}
+         
               <div className="px-4 lg:px-6">
                 <div className="bg-card rounded-lg border p-6 shadow-sm">
                   <h2 className="text-2xl font-semibold mb-3">Welcome, {props.auth.user.name}!</h2>
