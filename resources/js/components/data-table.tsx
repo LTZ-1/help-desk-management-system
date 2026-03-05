@@ -412,7 +412,7 @@ export function DataTable({ tickets, loading, error }: DataTableProps) {
       filteredData = filteredData.filter(ticket => ticket.category === filters.category);
     }
     
-    // Apply search filter (ticket number only)
+   
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
       filteredData = filteredData.filter(ticket => 
