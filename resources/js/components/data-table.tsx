@@ -157,7 +157,7 @@ interface PageProps {
   [key: string]: any
 }
 
-// Create a separate component for the drag handle
+//  for the drag handle
 function DragHandle({ id }: { id: number }) {
   const { attributes, listeners } = useSortable({
     id,
@@ -393,21 +393,21 @@ export function DataTable({ tickets, loading, error }: DataTableProps) {
     setData(tickets)
   }, [tickets])
 
-  // Apply filters to data
+  
   React.useEffect(() => {
     let filteredData = tickets;
     
-    // Apply status filter
-    if (filters.status && filters.status !== 'All_value') {
+   
+   if (filters.status && filters.status !== 'All_value') {
       filteredData = filteredData.filter(ticket => ticket.status === filters.status);
     }
     
-    // Apply priority filter
+    
     if (filters.priority && filters.priority !== 'All_priority') {
       filteredData = filteredData.filter(ticket => ticket.priority === filters.priority);
     }
     
-    // Apply category filter
+    // e
     if (filters.category && filters.category !== 'All_catagories') {
       filteredData = filteredData.filter(ticket => ticket.category === filters.category);
     }
