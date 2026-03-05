@@ -157,7 +157,7 @@ interface PageProps {
   [key: string]: any
 }
 
-//  for the drag handle
+//  for drag handle
 function DragHandle({ id }: { id: number }) {
   const { attributes, listeners } = useSortable({
     id,
