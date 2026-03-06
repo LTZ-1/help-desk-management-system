@@ -237,7 +237,7 @@ APP_URL=http://localhost:8000
 - Interactive tooltips
 - Time-based filtering
 
-## 🔒 Security Features
+##  Security Features
 
 - **Laravel Authentication** with built-in session management
 - **CSRF Protection** on all forms via Laravel middleware
@@ -247,7 +247,7 @@ APP_URL=http://localhost:8000
 - **Secure Headers** configuration
 - **Authorization Gates** for access control
 
-## 🧪 Testing
+##  Testing
 
 ### **Frontend Tests**
 ```bash
@@ -273,7 +273,7 @@ npm run test:e2e     # Playwright tests
 npm run test:e2e:ui  # Visual testing
 ```
 
-## 📈 Performance
+## Performance
 
 ### **Optimizations**
 - **Code Splitting** for faster initial load
@@ -312,13 +312,6 @@ docker-compose logs -f  # View logs
 - **Staging**: Pre-production testing
 - **Production**: Live environment
 
-## 🤝 Contributing
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
 
 ### **Code Standards**
 - **ESLint** for JavaScript/TypeScript
@@ -328,11 +321,11 @@ docker-compose logs -f  # View logs
 - **Type Safety** with strict TypeScript
 - **PSR Standards** for PHP code
 
-## 📝 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - **Laravel** for the amazing PHP framework
 - **Inertia.js** for seamless SPA-like experience
@@ -343,7 +336,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **React** team for amazing framework
 - **Vite** for fast build tooling
 
-## 📞 Support
+##  Support
 
 For support and questions:
 - **Issues**: [GitHub Issues](https://github.com/your-username/hd-dashboard/issues)
@@ -352,4 +345,4 @@ For support and questions:
 
 ---
 
-**Built with ❤️ using modern web technologies**
+
