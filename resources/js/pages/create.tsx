@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Create Ticket',
-        href: '/Tickets/create',
+        href: '/tickets/create',
     },
 ];
 
@@ -151,7 +151,7 @@ const handleRecipantChange = (value: string) => {
 const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        post('/Tickets/store', {
+        post('/tickets/store', {
             onError: (errors) => {
                 console.log('Submission errors:', errors);
             },

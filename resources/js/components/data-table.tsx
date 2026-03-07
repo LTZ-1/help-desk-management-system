@@ -563,7 +563,7 @@ export function DataTable({ tickets, loading, error }: DataTableProps) {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => window.location.href = '/Tickets/create'}
+            onClick={() => window.location.href = '/tickets/create'}
           >
             <IconPlus />
             <span className="hidden lg:inline">New Ticket</span>

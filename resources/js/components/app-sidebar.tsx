@@ -16,7 +16,7 @@ const mainNavItems: NavItem[] = [
     },
      {
         title: 'create a ticket',
-        href: '/Tickets/create',
+        href: '/tickets/create',
         icon: TicketPlus,
     },
 
