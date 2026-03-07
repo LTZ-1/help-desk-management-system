@@ -6,16 +6,18 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, UsersIcon } from "lucide-react"
 
 interface DepartmentStats {
-  total_tickets: number
-  open_tickets: number
+  total_tickets_to_resolve: number
   assigned_tickets: number
   resolved_tickets: number
   overdue_tickets: number
   active_resolvers: number
+  assigned_resolver_groups: number
+  // Optional fields for other contexts
+  total_tickets?: number
+  open_tickets?: number
   in_progress_tickets?: number
   group_tickets?: number
   individual_tickets?: number
-   // System admin specific stats
   total_users?: number
   active_users?: number
   inactive_users?: number
@@ -67,11 +69,9 @@ export function SectionCards({ statistics, loading, error }: SectionCardsProps) 
     )
   }
 
- // Determine if we're showing resolver-specific stats
-  const isResolverData = statistics.group_tickets !== undefined || statistics.individual_tickets !== undefined;
-
-  return (
+ return (
     <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4 px-4 lg:px-6">
+      {/* Total Tickets to Resolve */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
@@ -89,30 +89,17 @@ export function SectionCards({ statistics, loading, error }: SectionCardsProps) 
           </svg>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{statistics.total_tickets}</div>
+          <div className="text-2xl font-bold">{statistics.total_tickets_to_resolve || 0}</div>
           <p className="text-xs text-muted-foreground">
-             {isResolverData ? 'Your total assignments' : 'All department tickets'}
+            Tickets to resolve in department
           </p>
         </CardContent>
       </Card>
       
- 
-{statistics.total_users !== undefined && (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-      <UsersIcon className="h-4 w-4 text-muted-foreground" />
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{statistics.total_users}</div>
-      <p className="text-xs text-muted-foreground">Registered system users</p>
-    </CardContent>
-  </Card>
-)}
-
+      {/* Assigned Tickets */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium"> {statistics.assigned_tickets !== undefined ? 'Assigned' : 'Open'} Tickets</CardTitle>
+          <CardTitle className="text-sm font-medium">Assigned Tickets</CardTitle>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -128,38 +115,14 @@ export function SectionCards({ statistics, loading, error }: SectionCardsProps) 
           </svg>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold"> {statistics.assigned_tickets ?? statistics.open_tickets ?? 0}</div>
+          <div className="text-2xl font-bold">{statistics.assigned_tickets || 0}</div>
           <p className="text-xs text-muted-foreground">
-             {isResolverData ? 'Waiting for action' : 'Waiting for assignment'}
+            Currently assigned to resolvers
           </p>
         </CardContent>
       </Card>
       
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Assigned Tickets</CardTitle>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            className="h-4 w-4 text-muted-foreground"
-          >
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-          </svg>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{statistics.assigned_tickets}</div>
-          <p className="text-xs text-muted-foreground">
-            Currently being worked on
-          </p>
-        </CardContent>
-      </Card>
-      
+      {/* Resolved Tickets */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Resolved Tickets</CardTitle>
@@ -178,13 +141,14 @@ export function SectionCards({ statistics, loading, error }: SectionCardsProps) 
           </svg>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{statistics.resolved_tickets}</div>
+          <div className="text-2xl font-bold">{statistics.resolved_tickets || 0}</div>
           <p className="text-xs text-muted-foreground">
-           {isResolverData ? 'Successfully resolved' : 'Successfully completed'}
+            Successfully completed
           </p>
         </CardContent>
       </Card>
       
+      {/* Overdue Tickets */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Overdue Tickets</CardTitle>
@@ -203,13 +167,14 @@ export function SectionCards({ statistics, loading, error }: SectionCardsProps) 
           </svg>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-destructive">{statistics.overdue_tickets}</div>
+          <div className="text-2xl font-bold text-destructive">{statistics.overdue_tickets || 0}</div>
           <p className="text-xs text-muted-foreground">
             Past due date
           </p>
         </CardContent>
       </Card>
       
+      {/* Active Resolvers */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Active Resolvers</CardTitle>
@@ -230,68 +195,17 @@ export function SectionCards({ statistics, loading, error }: SectionCardsProps) 
           </svg>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{statistics.active_resolvers}</div>
+          <div className="text-2xl font-bold">{statistics.active_resolvers || 0}</div>
           <p className="text-xs text-muted-foreground">
             Available team members
           </p>
         </CardContent>
       </Card>
       
-    {/* Resolver-specific cards (only show if data exists) */}
-      {statistics.group_tickets !== undefined && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Group Tickets</CardTitle>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4 text-muted-foreground">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{statistics.group_tickets}</div>
-            <p className="text-xs text-muted-foreground">Team assignments</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {statistics.individual_tickets !== undefined && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Individual Tickets</CardTitle>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4 text-muted-foreground">
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{statistics.individual_tickets}</div>
-            <p className="text-xs text-muted-foreground">Personal assignments</p>
-          </CardContent>
-        </Card>
-      )}
-
-        {/* Admin-specific cards (only show if data exists) */}
-      {statistics.active_resolvers !== undefined && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Resolvers</CardTitle>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4 text-muted-foreground">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{statistics.active_resolvers}</div>
-            <p className="text-xs text-muted-foreground">Available team members</p>
-          </CardContent>
-        </Card>
-      )}
-
+      {/* Assigned Resolver Groups */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Resolution Rate</CardTitle>
+          <CardTitle className="text-sm font-medium">Resolver Groups</CardTitle>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -302,48 +216,21 @@ export function SectionCards({ statistics, loading, error }: SectionCardsProps) 
             strokeWidth="2"
             className="h-4 w-4 text-muted-foreground"
           >
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
-            {statistics.total_tickets > 0 
-              ? `${Math.round((statistics.resolved_tickets / statistics.total_tickets) * 100)}%` 
-              : '0%'
-            }
-          </div>
+          <div className="text-2xl font-bold">{statistics.assigned_resolver_groups || 0}</div>
           <p className="text-xs text-muted-foreground">
-            Success rate
-          </p>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg. Resolution Time</CardTitle>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            className="h-4 w-4 text-muted-foreground"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 7 12 16 14" />
-          </svg>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {statistics.resolved_tickets > 0 ? '2.5' : '0'} days
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Average time to resolve
+            Active resolver groups
           </p>
         </CardContent>
       </Card>
     </div>
   )
 }
+
+export { SectionCards }
