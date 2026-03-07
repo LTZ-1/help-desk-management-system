@@ -226,7 +226,7 @@ export default function Page() {
                 </div>
               </div>
 
-              {/* Error Message */}
+              {/* Error Message*/}
               {error && (
                 <div className="px-4 lg:px-6">
                   <div className="bg-destructive/15 text-destructive p-4 rounded-lg border border-destructive/20">
