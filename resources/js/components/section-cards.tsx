@@ -233,4 +233,3 @@ export function SectionCards({ statistics, loading, error }: SectionCardsProps) 
   )
 }
 
-export { SectionCards }
