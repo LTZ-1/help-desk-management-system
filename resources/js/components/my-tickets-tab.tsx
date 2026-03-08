@@ -1,4 +1,4 @@
-// resolvers-tab.tsx - Fixed version without statistics cards
+// my-tickets-tab.tsx - Fixed version for admin's assigned tickets
 "use client"
 import * as React from "react"
 import { useState, useEffect } from "react"
@@ -17,7 +17,7 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, MoreHorizontal, User, UserX, UserCheck, Search, X, Filter, Phone, Building } from "lucide-react"
+import { ArrowUpDown, ChevronDown, MoreHorizontal, Search, X, Filter, Calendar, User } from "lucide-react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -54,18 +54,22 @@ import {
   AlertTitle,
 } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { ResolverDetailsDrawer } from "@/components/resolver-details-drawer"
 
-interface Resolver {
+interface Ticket {
   id: number;
-  name: string;
-  email: string;
-  branch?: string;
-  phone?: string;
-  is_active: boolean;
-  last_login?: string;
-  resolved_tickets_count: number;
-  department_id: number;
+  ticket_number: string;
+  subject: string;
+  description: string;
+  status: string;
+  priority: string;
+  category: string;
+  created_at: string;
+  due_date: string;
+  assigned_to: number;
+  assigned_resolver_name?: string;
+  assignment_type: string;
+  resolver_id?: number;
+  group_id?: number;
 }
 
 interface PageProps {
@@ -75,9 +79,170 @@ interface PageProps {
   [key: string]: any
 }
 
-export function ResolversTab() {
+const columns: ColumnDef<Ticket>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "ticket_number",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8 data-[state=open]:bg-accent/50"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        <span>Ticket #</span>
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => (
+      <div className="font-medium">
+        {row.getValue("ticket_number")}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "subject",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8 data-[state=open]:bg-accent/50"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        <span>Subject</span>
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => (
+      <div className="max-w-[200px] truncate">
+        {row.getValue("subject")}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "category",
+    header: "Category",
+    cell: ({ row }) => (
+      <div className="capitalize">
+        {row.getValue("category")}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "priority",
+    header: "Priority",
+    cell: ({ row }) => (
+      <Badge variant={
+        row.getValue("priority") === "high" ? "destructive" :
+        row.getValue("priority") === "medium" ? "default" : "secondary"
+      }>
+        {row.getValue("priority")}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => (
+      <Badge variant={
+        row.getValue("status") === "open" ? "destructive" :
+        row.getValue("status") === "in_progress" ? "default" :
+        row.getValue("status") === "resolved" ? "default" : "secondary"
+      }>
+        {row.getValue("status")}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "assignment_type",
+    header: "Assignment Type",
+    cell: ({ row }) => (
+      <div className="capitalize">
+        {row.getValue("assignment_type")}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "assigned_to",
+    header: "Assigned To",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <User className="h-3 w-3 text-muted-foreground" />
+        <span className="text-sm">{row.getValue("assigned_resolver_name") || "Self"}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "due_date",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8 data-[state=open]:bg-accent/50"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        <span>Due Date</span>
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const dueDate = row.getValue("due_date")
+      return (
+        <div className="flex items-center gap-2">
+          <Calendar className="h-3 w-3 text-muted-foreground" />
+          <span className="text-sm">
+            {dueDate ? new Date(dueDate as string).toLocaleDateString() : "No due date"}
+          </span>
+        </div>
+      )
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem>View Details</DropdownMenuItem>
+          <DropdownMenuItem>Update Status</DropdownMenuItem>
+          <DropdownMenuItem>Add Solution</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>Close Ticket</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ),
+  },
+]
+
+export function MyTicketsTab() {
   const { props } = usePage<PageProps>()
-  const [data, setData] = useState<Resolver[]>([])
+  const [data, setData] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -85,247 +250,51 @@ export function ResolversTab() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState({})
   const [filters, setFilters] = useState({
+    status: '',
+    priority: '',
+    category: '',
     search: ''
   })
-  const [selectedResolver, setSelectedResolver] = useState<Resolver | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-
-  const columns: ColumnDef<Resolver>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
-    {
-      accessorKey: "id",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 h-8 data-[state=open]:bg-accent/50"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          <span>ID</span>
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <div className="font-medium">
-          {row.getValue("id")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "name",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 h-8 data-[state=open]:bg-accent/50"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          <span>Name</span>
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-            <User className="h-4 w-4" />
-          </div>
-          <div className="font-medium">
-            {row.getValue("name")}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-      cell: ({ row }) => (
-        <div className="text-sm">
-          {row.getValue("email")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "branch",
-      header: "Branch",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Building className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">{row.getValue("branch") || "N/A"}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "phone",
-      header: "Phone",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Phone className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">{row.getValue("phone") || "N/A"}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "is_active",
-      header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={row.getValue("is_active") ? "default" : "secondary"}>
-          {row.getValue("is_active") ? "Active" : "Inactive"}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "last_login",
-      header: "Last Login",
-      cell: ({ row }) => {
-        const lastLogin = row.getValue("last_login")
-        return (
-          <div className="text-sm">
-            {lastLogin ? new Date(lastLogin as string).toLocaleDateString() : "Never"}
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: "resolved_tickets_count",
-      header: "Resolved Tickets",
-      cell: ({ row }) => (
-        <div className="text-center">
-          <Badge variant="secondary">
-            {row.getValue("resolved_tickets_count")}
-          </Badge>
-        </div>
-      ),
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => {
-              setSelectedResolver(row.original)
-              setDrawerOpen(true)
-            }}>
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {row.getValue("is_active") ? (
-              <DropdownMenuItem 
-                className="text-red-600"
-                onClick={() => toggleResolverStatus(row.original.id, false)}
-              >
-                <UserX className="mr-2 h-4 w-4" />
-                Suspend
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem 
-                className="text-green-600"
-                onClick={() => toggleResolverStatus(row.original.id, true)}
-              >
-                <UserCheck className="mr-2 h-4 w-4" />
-                Activate
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
-  ]
 
   useEffect(() => {
-    fetchResolvers()
+    fetchMyTickets()
   }, [])
 
-  const fetchResolvers = async () => {
+  const fetchMyTickets = async () => {
     setLoading(true)
     setError(null)
     try {
-      // Use correct endpoint from Laravel routes: /dept-admin/resolvers
-      const response = await fetch('/dept-admin/resolvers', {
+      // Direct database fetch - get tickets assigned to admin only
+      const response = await fetch('/dept-admin/my-tickets', {
         headers: {
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         }
       })
       
       if (!response.ok) {
-        throw new Error('Failed to fetch resolvers')
+        throw new Error('Failed to fetch my tickets')
       }
       
       const result = await response.json()
       
-      // The backend already filters by department and is_resolver=true
-      // Map the data structure from ResolverService
-      const resolvers = (result.resolvers || []).map((resolver: any) => ({
-        id: resolver.id,
-        name: resolver.name,
-        email: resolver.email,
-        branch: resolver.branch,
-        phone: resolver.phone,
-        is_active: resolver.is_active,
-        last_login: resolver.last_login,
-        resolved_tickets_count: resolver.statistics?.tickets_resolved || 0,
-        department_id: resolver.department_id || props.auth.user?.department_id
-      }))
+      // Filter tickets assigned to the current admin user
+      const adminUserId = props.auth.user?.id
+      let tickets = result.tickets || []
       
-      setData(resolvers)
-    } catch (error) {
-      console.error('Error fetching resolvers:', error)
-      setError('Error loading resolvers')
-      toast.error('Error loading resolvers')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const toggleResolverStatus = async (resolverId: number, isActive: boolean) => {
-    try {
-      // Use correct endpoint from Laravel routes: /dept-admin/resolvers/{resolverId}/status
-      const response = await fetch(`/dept-admin/resolvers/${resolverId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        },
-        body: JSON.stringify({ 
-          status: isActive ? 'activate' : 'suspend'
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to update resolver status')
+      if (adminUserId) {
+        tickets = tickets.filter((ticket: Ticket) => 
+          ticket.assigned_to === adminUserId || 
+          (ticket.assignment_type === 'my_self' && ticket.assigned_to === adminUserId)
+        )
       }
       
-      toast.success(`Resolver ${isActive ? 'activated' : 'suspended'} successfully`)
-      fetchResolvers() // Refresh data
+      setData(tickets)
     } catch (error) {
-      console.error('Error updating resolver status:', error)
-      toast.error('Failed to update resolver status')
+      console.error('Error fetching my tickets:', error)
+      setError('Error loading tickets')
+      toast.error('Error loading tickets')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -352,6 +321,9 @@ export function ResolversTab() {
 
   const clearFilters = () => {
     setFilters({
+      status: '',
+      priority: '',
+      category: '',
       search: ''
     })
   }
@@ -361,7 +333,7 @@ export function ResolversTab() {
       <div className="px-4 lg:px-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Resolvers</AlertTitle>
+          <AlertTitle>Error Loading Tickets</AlertTitle>
           <AlertDescription>
             {error}
           </AlertDescription>
@@ -382,14 +354,72 @@ export function ResolversTab() {
     <div className="w-full space-y-4">
       {/* Filters */}
       <div className="flex flex-col lg:flex-row gap-4 p-4 bg-muted/50 rounded-lg">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Label htmlFor="status-filter" className="text-sm font-medium">Status</Label>
+            <Select
+              value={filters.status}
+              onValueChange={(value) => setFilters({...filters, status: value})}
+            >
+              <SelectTrigger id="status-filter" className="w-full sm:w-[150px]">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="assigned">Assigned</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Label htmlFor="priority-filter" className="text-sm font-medium">Priority</Label>
+            <Select
+              value={filters.priority}
+              onValueChange={(value) => setFilters({...filters, priority: value})}
+            >
+              <SelectTrigger id="priority-filter" className="w-full sm:w-[150px]">
+                <SelectValue placeholder="All Priorities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Priorities</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Label htmlFor="category-filter" className="text-sm font-medium">Category</Label>
+            <Select
+              value={filters.category}
+              onValueChange={(value) => setFilters({...filters, category: value})}
+            >
+              <SelectTrigger id="category-filter" className="w-full sm:w-[150px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="technical">Technical</SelectItem>
+                <SelectItem value="support">Support</SelectItem>
+                <SelectItem value="billing">Billing</SelectItem>
+                <SelectItem value="hr">HR</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-2">
             <Label htmlFor="search-filter" className="text-sm font-medium">Search</Label>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="search-filter"
-                placeholder="Search resolvers..."
+                placeholder="Search tickets..."
                 value={filters.search}
                 onChange={(e) => setFilters({...filters, search: e.target.value})}
                 className="w-full pl-8"
@@ -412,7 +442,7 @@ export function ResolversTab() {
             variant="outline"
             onClick={clearFilters}
             className="w-full sm:w-auto px-4 py-2"
-            disabled={!filters.search}
+            disabled={!filters.status && !filters.priority && !filters.category && !filters.search}
           >
             <X className="mr-2 h-4 w-4" />
             Clear Filters
@@ -457,16 +487,24 @@ export function ResolversTab() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-24 text-center">
-                    {filters.search ? (
+                    {filters.status || filters.priority || filters.category || filters.search ? (
                       <div className="flex flex-col items-center gap-2">
                         <Filter className="h-8 w-8 text-muted-foreground" />
-                        <p>No resolvers match your filters</p>
+                        <p>No tickets match your filters</p>
                         <Button variant="outline" size="sm" onClick={clearFilters}>
                           Clear Filters
                         </Button>
                       </div>
                     ) : (
-                      "No resolvers found in your department."
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                          <span className="text-2xl">📋</span>
+                        </div>
+                        <p className="text-lg font-medium">No tickets assigned to you yet</p>
+                        <p className="text-sm text-muted-foreground">
+                          Tickets assigned to you will appear here. You can assign tickets to yourself from the main Tickets tab.
+                        </p>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -555,14 +593,6 @@ export function ResolversTab() {
           </div>
         </div>
       </div>
-      
-      {/* Resolver Details Drawer */}
-      <ResolverDetailsDrawer 
-        resolver={selectedResolver}
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        onUpdate={fetchResolvers}
-      />
     </div>
   )
 }

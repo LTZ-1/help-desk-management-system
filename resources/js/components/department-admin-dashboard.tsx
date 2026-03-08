@@ -13,8 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataTable } from "@/components/data-table"
-import MyTicketsTable from "@/components/my-tickets-table"
-import ResolversTable from "@/components/resolvers-table"
+import { MyTicketsTab } from "@/components/my-tickets-tab"
+import { ResolversTab } from "@/components/resolvers-tab"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { SectionCards } from "@/components/section-cards"
 import { toast } from "sonner"
@@ -254,10 +254,7 @@ export default function DepartmentAdminDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <MyTicketsTable 
-                    loading={loading} 
-                    error={error || undefined}
-                  />
+                  <MyTicketsTab />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -271,10 +268,7 @@ export default function DepartmentAdminDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResolversTable 
-                    loading={loading} 
-                    error={error || undefined}
-                  />
+                  <ResolversTab />
                 </CardContent>
               </Card>
             </TabsContent>
