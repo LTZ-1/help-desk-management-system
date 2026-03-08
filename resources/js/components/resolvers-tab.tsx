@@ -63,6 +63,7 @@ interface Resolver {
   branch?: string;
   phone?: string;
   is_active: boolean;
+  is_resolver: boolean;
   last_login?: string;
   resolved_tickets_count: number;
   department_id: number;
@@ -99,14 +100,14 @@ export function ResolversTab() {
             table.getIsAllPageRowsSelected() ||
             (table.getIsSomePageRowsSelected() && "indeterminate")
           }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          onCheckedChange={(value: 'indeterminate' | boolean | undefined) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          onCheckedChange={(value: 'indeterminate' | boolean | undefined) => row.toggleSelected(!!value)}
           aria-label="Select row"
         />
       ),
@@ -288,6 +289,7 @@ export function ResolversTab() {
         branch: resolver.branch,
         phone: resolver.phone,
         is_active: resolver.is_active,
+        is_resolver: true, // All resolvers from this endpoint are resolvers
         last_login: resolver.last_login,
         resolved_tickets_count: resolver.statistics?.tickets_resolved || 0,
         department_id: resolver.department_id || props.auth.user?.department_id
@@ -391,7 +393,7 @@ export function ResolversTab() {
                 id="search-filter"
                 placeholder="Search resolvers..."
                 value={filters.search}
-                onChange={(e) => setFilters({...filters, search: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters({...filters, search: e.target.value})}
                 className="w-full pl-8"
               />
               {filters.search && (
@@ -493,7 +495,7 @@ export function ResolversTab() {
             </Label>
             <Select
               value={`${table.getState().pagination.pageSize}`}
-              onValueChange={(value) => {
+              onValueChange={(value: string) => {
                 table.setPageSize(Number(value))
               }}
             >

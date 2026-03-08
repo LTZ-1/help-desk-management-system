@@ -51,12 +51,15 @@ export default function DepartmentAdminDashboard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [statistics, setStatistics] = useState({
-    total_tickets: 0,
-    open_tickets: 0,
+    total_tickets_to_resolve: 0,
     assigned_tickets: 0,
     resolved_tickets: 0,
     overdue_tickets: 0,
     active_resolvers: 0,
+    assigned_resolver_groups: 0,
+    // Optional fields for compatibility
+    total_tickets: 0,
+    open_tickets: 0,
     in_progress_tickets: 0,
     group_tickets: 0,
     individual_tickets: 0
@@ -74,12 +77,15 @@ export default function DepartmentAdminDashboard() {
   // Transform backend statistics to frontend format
   const transformStatistics = (backendStats: any) => {
     return {
-      total_tickets: backendStats.total_tickets_to_resolve || 0,
-      open_tickets: backendStats.total_tickets_to_resolve || 0,
+      total_tickets_to_resolve: backendStats.total_tickets_to_resolve || 0,
       assigned_tickets: backendStats.assigned_tickets || 0,
       resolved_tickets: backendStats.resolved_tickets || 0,
       overdue_tickets: backendStats.overdue_tickets || 0,
       active_resolvers: backendStats.active_resolvers || 0,
+      assigned_resolver_groups: backendStats.assigned_resolver_groups || 0,
+      // Optional fields for compatibility
+      total_tickets: backendStats.total_tickets || backendStats.total_tickets_to_resolve || 0,
+      open_tickets: backendStats.open_tickets || backendStats.total_tickets_to_resolve || 0,
       in_progress_tickets: backendStats.in_progress_tickets || 0,
       group_tickets: backendStats.group_tickets || 0,
       individual_tickets: backendStats.individual_tickets || 0
