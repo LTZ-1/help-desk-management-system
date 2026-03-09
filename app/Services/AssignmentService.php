@@ -103,9 +103,14 @@ class AssignmentService
                 ])
             ]);
 
-            // Add forwarding note to ticket description
-            $forwardMessage = "\n\n--- Forwarded from {$sourceDepartment->name} ---\n{$notes}";
+            // Format subject with bold forwarding text
+            $forwardedSubject = "**[FORWARDED]** " . $ticket->subject;
+            
+            // Add forwarding note to description with proper formatting
+            $forwardMessage = "\n\n--- **Forwarded from {$sourceDepartment->name}** ---\n{$notes}";
+            
             $ticket->update([
+                'subject' => $forwardedSubject,
                 'description' => $ticket->description . $forwardMessage
             ]);
 

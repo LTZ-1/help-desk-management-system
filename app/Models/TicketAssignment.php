@@ -22,9 +22,13 @@ class TicketAssignment extends Model
         'ticket_id',
         'assigned_by',
         'assigned_to',
+        'department_id',
+        'assignment_type',
+        'group_id',
         'notes',
         'due_date',
-        'completed_at'
+        'completed_at',
+        'assigned_at'
     ];
 
     protected $casts = [

@@ -24,7 +24,7 @@ class Ticket extends Model
         'due_date',
         'resolved_at',
         'closed_at',
-        'ticket_number','assignment_type'
+        'ticket_number','assignment_type','group_id'
     ];
     
     // ADD CASTS FOR NEW DATE FIELDS

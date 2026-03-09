@@ -835,6 +835,209 @@ export function DataTable({ tickets, loading, error }: DataTableProps) {
 
 function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
   const isMobile = useIsMobile()
+  const { props } = usePage<PageProps>()
+  const [loading, setLoading] = useState(false)
+  const [assignmentType, setAssignmentType] = useState<'myself' | 'resolvers' | ''>('')
+  const [resolverType, setResolverType] = useState<'individual' | 'group' | ''>('')
+  const [selectedResolvers, setSelectedResolvers] = useState<any[]>([])
+  const [selectedDepartment, setSelectedDepartment] = useState<any>(null)
+  const [forwardNotes, setForwardNotes] = useState('')
+  const [dueDate, setDueDate] = useState(item.due_date ? new Date(item.due_date).toISOString().split('T')[0] : '')
+  const [status, setStatus] = useState(item.status)
+  const [availableResolvers, setAvailableResolvers] = useState<any[]>([])
+  const [departments, setDepartments] = useState<any[]>([])
+  const [showForwardSection, setShowForwardSection] = useState(false)
+  const [searchResolverQuery, setSearchResolverQuery] = useState('')
+
+  // Fetch available resolvers and departments on mount
+  useEffect(() => {
+    fetchAvailableResolvers()
+    fetchDepartments()
+  }, [])
+
+  const fetchAvailableResolvers = async () => {
+    try {
+      const response = await fetch('/dept-admin/resolvers/available', {
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableResolvers(data.resolvers || [])
+      }
+    } catch (error) {
+      console.error('Error fetching resolvers:', error)
+    }
+  }
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/departments/list', {
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setDepartments(data.departments || [])
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error)
+    }
+  }
+
+  const handleAssignToMyself = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/dept-admin/tickets/${item.id}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+          action: 'assign_myself',
+          resolver_id: props.auth.user.id,
+          due_date: dueDate || null
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Ticket assigned to you successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to assign ticket')
+      }
+    } catch (error) {
+      toast.error('Failed to assign ticket')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAssignToIndividual = async () => {
+    if (selectedResolvers.length !== 1) {
+      toast.error('Please select exactly one resolver')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/dept-admin/tickets/${item.id}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+          action: 'assign_individual',
+          resolver_id: selectedResolvers[0].id,
+          due_date: dueDate || null
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Ticket assigned successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to assign ticket')
+      }
+    } catch (error) {
+      toast.error('Failed to assign ticket')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAssignToGroup = async () => {
+    if (selectedResolvers.length < 2) {
+      toast.error('Please select at least two resolvers for group assignment')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/dept-admin/tickets/${item.id}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+          action: 'assign_group',
+          resolver_ids: selectedResolvers.map(r => r.id),
+          due_date: dueDate || null
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Ticket assigned to group successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to assign ticket to group')
+      }
+    } catch (error) {
+      toast.error('Failed to assign ticket to group')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForwardTicket = async () => {
+    if (!selectedDepartment || !forwardNotes.trim()) {
+      toast.error('Please select a department and provide forwarding notes')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/dept-admin/tickets/${item.id}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+          action: 'forward',
+          forward_to_department_id: selectedDepartment.id,
+          forward_notes: forwardNotes,
+          due_date: dueDate || null
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Ticket forwarded successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to forward ticket')
+      }
+    } catch (error) {
+      toast.error('Failed to forward ticket')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addResolverToSelection = (resolver: any) => {
+    if (!selectedResolvers.find(r => r.id === resolver.id)) {
+      setSelectedResolvers([...selectedResolvers, resolver])
+    }
+    setSearchResolverQuery('')
+  }
+
+  const removeResolverFromSelection = (resolverId: number) => {
+    setSelectedResolvers(selectedResolvers.filter(r => r.id !== resolverId))
+  }
+
+  const filteredResolvers = availableResolvers.filter(resolver =>
+    resolver.name.toLowerCase().includes(searchResolverQuery.toLowerCase()) ||
+    resolver.email.toLowerCase().includes(searchResolverQuery.toLowerCase())
+  )
 
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
@@ -843,58 +1046,53 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
           {item.ticket_number}
         </Button>
       </DrawerTrigger>
-      <DrawerContent>
+      <DrawerContent className="max-w-2xl mx-auto">
         <DrawerHeader className="gap-1">
           <DrawerTitle>{item.subject}</DrawerTitle>
           <DrawerDescription>
             Ticket #{item.ticket_number} • Created {new Date(item.created_at).toLocaleDateString()}
           </DrawerDescription>
         </DrawerHeader>
-        <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
+        <div className="flex flex-col gap-6 overflow-y-auto px-4 text-sm max-h-[70vh]">
+          {/* Ticket Details Section */}
           <form className="flex flex-col gap-4">
             <div className="flex flex-col gap-3">
               <Label htmlFor="subject">Subject</Label>
               <Input id="subject" defaultValue={item.subject} readOnly />
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
                 <Label htmlFor="category">Category</Label>
-                <Select defaultValue={item.category} disabled>
-                  <SelectTrigger id="category" className="w-full">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Technical">Technical</SelectItem>
-                    <SelectItem value="Billing">Billing</SelectItem>
-                    <SelectItem value="General">General</SelectItem>
-                    <SelectItem value="Support">Support</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Badge variant="outline" className="text-muted-foreground px-1.5 py-2 h-10 w-full justify-start">
+                  {item.category}
+                </Badge>
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="priority">Priority</Label>
-                <Select defaultValue={item.priority} disabled>
-                  <SelectTrigger id="priority" className="w-full">
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Badge 
+                  variant={
+                    item.priority.toLowerCase() === 'high' ? 'destructive' :
+                    item.priority.toLowerCase() === 'medium' ? 'default' :
+                    item.priority.toLowerCase() === 'low' ? 'secondary' : 'outline'
+                  } 
+                  className="px-1.5 py-2 h-10 w-full justify-start"
+                >
+                  {item.priority}
+                </Badge>
               </div>
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
                 <Label htmlFor="status">Status</Label>
-                <Select defaultValue={item.status} disabled>
+                <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger id="status" className="w-full">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
                     <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="resolved">Resolved</SelectItem>
                     <SelectItem value="closed">Closed</SelectItem>
@@ -906,11 +1104,13 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
                 <Input 
                   id="due_date" 
                   type="date" 
-                  defaultValue={item.due_date ? new Date(item.due_date).toISOString().split('T')[0] : ''} 
-                  readOnly
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
                 />
               </div>
             </div>
+            
             <div className="flex flex-col gap-3">
               <Label htmlFor="description">Description</Label>
               <textarea 
@@ -921,11 +1121,245 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
               />
             </div>
           </form>
+
+          <Separator />
+
+          {/* Assignment Section */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-base font-semibold">Assignment Options</h3>
+            
+            {/* Assignment Type Selection */}
+            <div className="flex flex-col gap-3">
+              <Label>Assign to</Label>
+              <Select value={assignmentType} onValueChange={(value: 'myself' | 'resolvers' | '') => {
+                setAssignmentType(value)
+                setResolverType('')
+                setSelectedResolvers([])
+                setShowForwardSection(false)
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select assignment option" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="myself">Myself</SelectItem>
+                  <SelectItem value="resolvers">Resolvers</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Myself Assignment */}
+            {assignmentType === 'myself' && (
+              <div className="flex flex-col gap-3 p-4 border rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground">
+                  Assign this ticket to yourself for resolution.
+                </p>
+                <Button 
+                  onClick={handleAssignToMyself} 
+                  disabled={loading}
+                  className="w-full"
+                >
+                  {loading ? 'Assigning...' : 'Assign to Myself'}
+                </Button>
+              </div>
+            )}
+
+            {/* Resolvers Assignment */}
+            {assignmentType === 'resolvers' && (
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
+                  <Label>Assignment Type</Label>
+                  <Select value={resolverType} onValueChange={(value: 'individual' | 'group' | '') => {
+                    setResolverType(value)
+                    setSelectedResolvers([])
+                  }}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select resolver type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="group">Group</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Individual Resolver Selection */}
+                {resolverType === 'individual' && (
+                  <div className="flex flex-col gap-3">
+                    <Label>Select Resolver</Label>
+                    <div className="relative">
+                      <Input
+                        placeholder="Search resolvers..."
+                        value={searchResolverQuery}
+                        onChange={(e) => setSearchResolverQuery(e.target.value)}
+                        className="w-full"
+                      />
+                      {searchResolverQuery && filteredResolvers.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          {filteredResolvers.map((resolver) => (
+                            <div
+                              key={resolver.id}
+                              onClick={() => addResolverToSelection(resolver)}
+                              className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                            >
+                              <div className="font-medium">{resolver.name}</div>
+                              <div className="text-sm text-muted-foreground">{resolver.email}</div>
+                              <div className="text-xs text-muted-foreground">ID: {resolver.id}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {selectedResolvers.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <Label>Selected Resolver</Label>
+                        {selectedResolvers.map((resolver) => (
+                          <div key={resolver.id} className="flex items-center justify-between p-2 border rounded">
+                            <div>
+                              <div className="font-medium">{resolver.name}</div>
+                              <div className="text-sm text-muted-foreground">ID: {resolver.id}</div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeResolverFromSelection(resolver.id)}
+                            >
+                              <IconX className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <Button 
+                      onClick={handleAssignToIndividual} 
+                      disabled={loading || selectedResolvers.length !== 1}
+                      className="w-full"
+                    >
+                      {loading ? 'Assigning...' : 'Assign to Individual'}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Group Resolver Selection */}
+                {resolverType === 'group' && (
+                  <div className="flex flex-col gap-3">
+                    <Label>Select Resolvers (Minimum 2)</Label>
+                    <div className="relative">
+                      <Input
+                        placeholder="Search resolvers..."
+                        value={searchResolverQuery}
+                        onChange={(e) => setSearchResolverQuery(e.target.value)}
+                        className="w-full"
+                      />
+                      {searchResolverQuery && filteredResolvers.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          {filteredResolvers.map((resolver) => (
+                            <div
+                              key={resolver.id}
+                              onClick={() => addResolverToSelection(resolver)}
+                              className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                            >
+                              <div className="font-medium">{resolver.name}</div>
+                              <div className="text-sm text-muted-foreground">{resolver.email}</div>
+                              <div className="text-xs text-muted-foreground">ID: {resolver.id}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {selectedResolvers.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <Label>Selected Resolvers ({selectedResolvers.length})</Label>
+                        {selectedResolvers.map((resolver) => (
+                          <div key={resolver.id} className="flex items-center justify-between p-2 border rounded">
+                            <div>
+                              <div className="font-medium">{resolver.name}</div>
+                              <div className="text-sm text-muted-foreground">ID: {resolver.id}</div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeResolverFromSelection(resolver.id)}
+                            >
+                              <IconX className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <Button 
+                      onClick={handleAssignToGroup} 
+                      disabled={loading || selectedResolvers.length < 2}
+                      className="w-full"
+                    >
+                      {loading ? 'Assigning...' : `Assign to Group (${selectedResolvers.length} selected)`}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Forward Ticket Section */}
+            <div className="flex flex-col gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowForwardSection(!showForwardSection)}
+                className="w-full"
+              >
+                {showForwardSection ? 'Cancel Forward' : 'Forward to Another Department'}
+              </Button>
+              
+              {showForwardSection && (
+                <div className="flex flex-col gap-3 p-4 border rounded-lg bg-muted/50">
+                  <div className="flex flex-col gap-3">
+                    <Label>Target Department</Label>
+                    <Select value={selectedDepartment?.id?.toString() || ''} onValueChange={(value) => {
+                      const dept = departments.find(d => d.id.toString() === value)
+                      setSelectedDepartment(dept)
+                    }}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments.filter(d => d.id !== props.auth.user.department_id).map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id.toString()}>
+                            {dept.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex flex-col gap-3">
+                    <Label>Forwarding Notes</Label>
+                    <textarea
+                      placeholder="Enter notes for the receiving department..."
+                      value={forwardNotes}
+                      onChange={(e) => setForwardNotes(e.target.value)}
+                      className="w-full min-h-[80px] p-2 border rounded-md"
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={handleForwardTicket} 
+                    disabled={loading || !selectedDepartment || !forwardNotes.trim()}
+                    className="w-full"
+                  >
+                    {loading ? 'Forwarding...' : 'Forward Ticket'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <DrawerFooter>
-          <Button>Save Changes</Button>
           <DrawerClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline">Close</Button>
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>
