@@ -215,9 +215,9 @@ export default function DepartmentAdminDashboard() {
       {/* Statistics Cards */}
       <SectionCards statistics={statistics} loading={loading} error={error || undefined} />
 
-      {/* Chart and Tabs */}
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-        <div className="xl:col-span-2">
+      {/* Chart Area - Full width like section cards */}
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-full">
           <ChartAreaInteractive 
             chartData={chartData} 
             loading={loading} 
@@ -225,7 +225,11 @@ export default function DepartmentAdminDashboard() {
             chartType="tickets"
           />
         </div>
-        <div className="xl:col-span-1">
+      </div>
+
+      {/* Data Table Tabs - Full width like section cards */}
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-full">
           <Tabs defaultValue="tickets" className="space-y-4">
             <TabsList>
               <TabsTrigger value="tickets">Tickets</TabsTrigger>
@@ -241,12 +245,14 @@ export default function DepartmentAdminDashboard() {
                     Manage and assign all tickets in your department
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <DataTable 
-                    tickets={tickets} 
-                    loading={loading} 
-                    error={error || undefined}
-                  />
+                <CardContent className="overflow-x-auto">
+                  <div className="min-w-full">
+                    <DataTable 
+                      tickets={tickets} 
+                      loading={loading} 
+                      error={error || undefined}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -259,8 +265,10 @@ export default function DepartmentAdminDashboard() {
                     Tickets assigned to you for resolution
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <MyTicketsTab />
+                <CardContent className="overflow-x-auto">
+                  <div className="min-w-full">
+                    <MyTicketsTab />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -273,8 +281,10 @@ export default function DepartmentAdminDashboard() {
                     Manage resolvers in your department
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ResolversTab />
+                <CardContent className="overflow-x-auto">
+                  <div className="min-w-full">
+                    <ResolversTab />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
