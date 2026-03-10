@@ -70,13 +70,18 @@ class AssignmentService
         $sourceDepartment = $ticket->assignedDepartment;
 
         return DB::transaction(function () use ($ticket, $targetDepartment, $sourceDepartment, $notes, $adminId) {
-            // Update ticket assignment
+            // Prepare forwarding information
+            $forwardingInfo = "\n\n--- Forwarded by {$sourceDepartment->name} ---\n{$notes}";
+            
+            // Update ticket with forwarding information
             $ticket->update([
                 'assigned_department_id' => $targetDepartmentId,
                 'assigned_resolver_id' => null,
                 'assignment_type' => null,
                 'group_id' => null,
-                'status' => 'forwarded'
+                'status' => 'forwarded',
+                'subject' => "**Forwarded** " . $ticket->subject,
+                'description' => $ticket->description . $forwardingInfo
             ]);
 
             // Create assignment record
@@ -95,23 +100,14 @@ class AssignmentService
                 'ticket_id' => $ticket->id,
                 'user_id' => $adminId ?? Auth::id(),
                 'action' => 'forwarded',
-                'description' => "Forwarded from {$sourceDepartment->name} to {$targetDepartment->name}",
+                'description' => "Forwarded to {$targetDepartment->name}",
                 'details' => json_encode([
-                    'from_department' => $sourceDepartment->name,
-                    'to_department' => $targetDepartment->name,
-                    'notes' => $notes
+                    'source_department_id' => $sourceDepartment->id,
+                    'source_department_name' => $sourceDepartment->name,
+                    'target_department_id' => $targetDepartmentId,
+                    'target_department_name' => $targetDepartment->name,
+                    'forward_notes' => $notes
                 ])
-            ]);
-
-            // Format subject with bold forwarding text
-            $forwardedSubject = "**[FORWARDED]** " . $ticket->subject;
-            
-            // Add forwarding note to description with proper formatting
-            $forwardMessage = "\n\n--- **Forwarded from {$sourceDepartment->name}** ---\n{$notes}";
-            
-            $ticket->update([
-                'subject' => $forwardedSubject,
-                'description' => $ticket->description . $forwardMessage
             ]);
 
             return [
@@ -181,14 +177,13 @@ class AssignmentService
 
             switch ($action) {
                 case 'assign_individual':
-                case 'assign_myself':
                     $resolverId = $data['resolver_id'];
                     $resolver = User::findOrFail($resolverId);
 
                     // Verify resolver belongs to same department (for non-forward assignments)
                     if ($ticket->assigned_department_id && $resolver->department_id !== $ticket->assigned_department_id) {
                         throw ValidationException::withMessages([
-                            'resolver' => 'Resolver must belong to the same department as the ticket'
+                            'resolver' => 'Resolver must belong to the same department as ticket'
                         ]);
                     }
 
@@ -220,6 +215,49 @@ class AssignmentService
                     ]);
 
                     $message = "Ticket assigned to {$resolver->name}";
+                    break;
+
+                case 'assign_myself':
+                    $resolverId = $data['resolver_id'];
+                    $resolver = User::findOrFail($resolverId);
+
+                    // Verify resolver belongs to same department (for non-forward assignments)
+                    if ($ticket->assigned_department_id && $resolver->department_id !== $ticket->assigned_department_id) {
+                        throw ValidationException::withMessages([
+                            'resolver' => 'Resolver must belong to the same department as ticket'
+                        ]);
+                    }
+
+                    $updateData['assigned_resolver_id'] = $resolverId;
+                    $updateData['assignment_type'] = 'individual';
+                    $updateData['group_id'] = null;
+                    $updateData['status'] = 'in_progress'; // Set to in_progress for self-assignment
+
+                    // Create assignment record
+                    TicketAssignment::create([
+                        'ticket_id' => $ticket->id,
+                        'assigned_by' => $adminId,
+                        'assigned_to' => $resolverId,
+                        'department_id' => $ticket->assigned_department_id,
+                        'assignment_type' => 'individual',
+                        'assigned_at' => now()
+                    ]);
+
+                    // Create history record
+                    TicketHistory::create([
+                        'ticket_id' => $ticket->id,
+                        'user_id' => $adminId,
+                        'action' => 'assigned',
+                        'description' => "Assigned to self ({$resolver->name}) for resolution",
+                        'details' => json_encode([
+                            'resolver_id' => $resolverId,
+                            'resolver_name' => $resolver->name,
+                            'assignment_type' => 'individual',
+                            'self_assigned' => true
+                        ])
+                    ]);
+
+                    $message = "Ticket assigned to you for resolution";
                     break;
 
                 case 'assign_group':

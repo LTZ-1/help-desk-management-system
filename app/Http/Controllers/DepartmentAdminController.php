@@ -85,15 +85,66 @@ class DepartmentAdminController extends Controller
             return response()->json(['error' => 'No department assigned'], 403);
         }
 
-        $filters = $request->all();
-        $filters['assigned_resolver_id'] = $user->id; // Only user's tickets
-        
-        $tickets = $this->ticketService->getResolverTickets($user->id, $filters);
+        try {
+            // Get tickets directly assigned to this admin user
+            $query = Ticket::with(['assignedDepartment', 'assignedResolver'])
+                ->where('assigned_resolver_id', $user->id)
+                ->where('assigned_department_id', $user->department_id);
 
-        return response()->json([
-            'tickets' => $tickets,
-            'filters' => $filters
-        ]);
+            // Apply filters if provided
+            if ($request->status && $request->status !== '') {
+                $query->where('status', $request->status);
+            }
+            if ($request->priority && $request->priority !== '') {
+                $query->where('priority', $request->priority);
+            }
+            if ($request->category && $request->category !== '') {
+                $query->where('category', $request->category);
+            }
+            if ($request->search && $request->search !== '') {
+                $query->where(function($q) use ($request) {
+                    $q->where('ticket_number', 'like', '%' . $request->search . '%')
+                      ->orWhere('subject', 'like', '%' . $request->search . '%');
+                });
+            }
+
+            // Order by latest first
+            $query->orderBy('created_at', 'desc');
+
+            $tickets = $query->get();
+
+            // Transform the data to match frontend expectations
+            $formattedTickets = $tickets->map(function ($ticket) {
+                return [
+                    'id' => $ticket->id,
+                    'ticket_number' => $ticket->ticket_number,
+                    'subject' => $ticket->subject,
+                    'description' => $ticket->description,
+                    'status' => $ticket->status,
+                    'priority' => $ticket->priority,
+                    'category' => $ticket->category,
+                    'created_at' => $ticket->created_at->toISOString(),
+                    'due_date' => $ticket->due_date ? $ticket->due_date->toISOString() : null,
+                    'assigned_to' => $ticket->assigned_resolver_id,
+                    'assigned_resolver_name' => $ticket->assignedResolver ? $ticket->assignedResolver->name : null,
+                    'assignment_type' => $ticket->assignment_type,
+                    'resolver_id' => $ticket->assigned_resolver_id,
+                    'assigned_resolver_id' => $ticket->assigned_resolver_id,
+                    'group_id' => $ticket->group_id,
+                ];
+            });
+
+            return response()->json([
+                'tickets' => $formattedTickets,
+                'filters' => $request->all()
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error fetching my tickets: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to fetch tickets: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

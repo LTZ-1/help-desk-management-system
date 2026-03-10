@@ -1,4 +1,4 @@
-// my-tickets-tab.tsx - Fixed version for admin's assigned tickets
+// my-tickets-tab.tsx - Simple robust version based on admin page structure
 "use client"
 import * as React from "react"
 import { useState, useEffect } from "react"
@@ -14,32 +14,20 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   SortingState,
-  useReactTable,
   VisibilityState,
+  useReactTable,
 } from "@tanstack/react-table"
 import { ArrowUpDown, ChevronDown, MoreHorizontal, Search, X, Filter, Calendar, User } from "lucide-react"
-import { toast } from "sonner"
-
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -54,195 +42,125 @@ import {
   AlertTitle,
 } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { toast } from "sonner"
 
-interface Ticket {
-  id: number;
-  ticket_number: string;
-  subject: string;
-  description: string;
-  status: string;
-  priority: string;
-  category: string;
-  created_at: string;
-  due_date: string;
-  assigned_to: number;
-  assigned_resolver_name?: string;
-  assignment_type: string;
-  resolver_id?: number;
-  group_id?: number;
+// Simple ticket interface
+interface SimpleTicket {
+  id: number
+  ticket_number: string
+  subject: string
+  status: string
+  priority: string
+  category: string
+  created_at: string
+  due_date: string | null
+  assigned_to: number | null
+  assigned_resolver_name: string | null
+  assignment_type: string | null
+  resolver_id: number | null
+  assigned_resolver_id: number | null
+  group_id: number | null
 }
 
 interface PageProps {
   auth: {
-    user: any
+    user: {
+      id: number
+      name: string
+      email: string
+      department_id: number
+    }
   }
-  [key: string]: any
+  [key: string]: any // Add index signature to satisfy Inertia.js constraint
 }
 
-const columns: ColumnDef<Ticket>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
+// Simple columns - same as admin page
+const columns: ColumnDef<SimpleTicket>[] = [
   {
     accessorKey: "ticket_number",
     header: ({ column }) => (
       <Button
         variant="ghost"
-        size="sm"
-        className="-ml-3 h-8 data-[state=open]:bg-accent/50"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        <span>Ticket #</span>
+        Ticket #
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => (
-      <div className="font-medium">
-        {row.getValue("ticket_number")}
-      </div>
-    ),
+    cell: ({ row }) => <div className="font-medium">{row.getValue("ticket_number")}</div>,
   },
   {
     accessorKey: "subject",
     header: ({ column }) => (
       <Button
         variant="ghost"
-        size="sm"
-        className="-ml-3 h-8 data-[state=open]:bg-accent/50"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        <span>Subject</span>
+        Subject
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => (
-      <div className="max-w-[200px] truncate">
-        {row.getValue("subject")}
-      </div>
-    ),
+    cell: ({ row }) => <div>{row.getValue("subject")}</div>,
   },
   {
     accessorKey: "category",
     header: "Category",
-    cell: ({ row }) => (
-      <div className="capitalize">
-        {row.getValue("category")}
-      </div>
-    ),
+    cell: ({ row }) => <div>{row.getValue("category")}</div>,
   },
   {
     accessorKey: "priority",
     header: "Priority",
-    cell: ({ row }) => (
-      <Badge variant={
-        row.getValue("priority") === "high" ? "destructive" :
-        row.getValue("priority") === "medium" ? "default" : "secondary"
-      }>
-        {row.getValue("priority")}
-      </Badge>
-    ),
+    cell: ({ row }) => <div>{row.getValue("priority")}</div>,
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={
-        row.getValue("status") === "open" ? "destructive" :
-        row.getValue("status") === "in_progress" ? "default" :
-        row.getValue("status") === "resolved" ? "default" : "secondary"
-      }>
-        {row.getValue("status")}
-      </Badge>
-    ),
+    cell: ({ row }) => <div>{row.getValue("status")}</div>,
   },
   {
-    accessorKey: "assignment_type",
-    header: "Assignment Type",
-    cell: ({ row }) => (
-      <div className="capitalize">
-        {row.getValue("assignment_type")}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "assigned_to",
+    accessorKey: "assigned_resolver_name",
     header: "Assigned To",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <User className="h-3 w-3 text-muted-foreground" />
-        <span className="text-sm">{row.getValue("assigned_resolver_name") || "Self"}</span>
-      </div>
-    ),
+    cell: ({ row }) => <div>{row.getValue("assigned_resolver_name") || "Unassigned"}</div>,
   },
   {
     accessorKey: "due_date",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-3 h-8 data-[state=open]:bg-accent/50"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        <span>Due Date</span>
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    header: "Due Date",
     cell: ({ row }) => {
-      const dueDate = row.getValue("due_date")
-      return (
-        <div className="flex items-center gap-2">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm">
-            {dueDate ? new Date(dueDate as string).toLocaleDateString() : "No due date"}
-          </span>
-        </div>
-      )
+      const date = row.getValue("due_date") as string | null
+      return date ? new Date(date).toLocaleDateString() : "Not set"
     },
   },
   {
     id: "actions",
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem>View Details</DropdownMenuItem>
-          <DropdownMenuItem>Update Status</DropdownMenuItem>
-          <DropdownMenuItem>Add Solution</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Close Ticket</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
+    enableHiding: false,
+    cell: ({ row }) => {
+      const ticket = row.original
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem>View Details</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>Mark as Resolved</DropdownMenuItem>
+            <DropdownMenuItem>Close Ticket</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
   },
 ]
 
 export function MyTicketsTab() {
   const { props } = usePage<PageProps>()
-  const [data, setData] = useState<Ticket[]>([])
+  
+  // Simple state management
+  const [data, setData] = useState<SimpleTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -256,76 +174,88 @@ export function MyTicketsTab() {
     search: ''
   })
 
-  useEffect(() => {
-    fetchMyTickets()
-  }, [])
-
+  // Simple fetch function
   const fetchMyTickets = async () => {
     setLoading(true)
     setError(null)
+    
     try {
-      // Direct database fetch - get tickets assigned to admin only
+      console.log('Fetching my tickets...')
+      
       const response = await fetch('/dept-admin/my-tickets', {
         headers: {
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json',
         }
       })
       
+      console.log('Response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch my tickets')
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
       
       const result = await response.json()
+      console.log('API Response:', result)
       
-      // Filter tickets assigned to the current admin user
-      const adminUserId = props.auth.user?.id
-      let tickets = result.tickets || []
-      
-      if (adminUserId) {
-        tickets = tickets.filter((ticket: Ticket) => 
-          ticket.assigned_to === adminUserId || 
-          (ticket.assignment_type === 'my_self' && ticket.assigned_to === adminUserId)
-        )
+      if (result.error) {
+        throw new Error(result.error)
       }
       
-      setData(tickets)
-    } catch (error) {
-      console.error('Error fetching my tickets:', error)
-      setError('Error loading tickets')
-      toast.error('Error loading tickets')
+      // Simple data handling
+      const tickets = result.tickets || []
+      console.log('Tickets received:', tickets.length)
+      
+      if (Array.isArray(tickets)) {
+        setData(tickets)
+      } else {
+        console.error('Expected array, got:', typeof tickets)
+        setData([])
+      }
+      
+    } catch (err) {
+      console.error('Error:', err)
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      setError(message)
+      toast.error(message)
+      setData([]) // Always set empty array to prevent blank page
     } finally {
       setLoading(false)
     }
   }
 
+  useEffect(() => {
+    fetchMyTickets()
+  }, [])
+
   const table = useReactTable({
     data,
     columns,
-    state: {
-      sorting,
-      columnVisibility,
-      rowSelection,
-      columnFilters,
-    },
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
   })
 
-  const clearFilters = () => {
-    setFilters({
-      status: '',
-      priority: '',
-      category: '',
-      search: ''
-    })
+  // Simple render logic
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
   }
 
   if (error) {
@@ -334,18 +264,13 @@ export function MyTicketsTab() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Tickets</AlertTitle>
-          <AlertDescription>
-            {error}
-          </AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="mt-4">
+          <Button onClick={fetchMyTickets} variant="outline">
+            Try Again
+          </Button>
+        </div>
       </div>
     )
   }
@@ -356,241 +281,143 @@ export function MyTicketsTab() {
       <div className="flex flex-col lg:flex-row gap-4 p-4 bg-muted/50 rounded-lg">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex flex-col sm:flex-row gap-2">
-            <Label htmlFor="status-filter" className="text-sm font-medium">Status</Label>
-            <Select
+            <label className="text-sm font-medium flex items-center">Status</label>
+            <select
               value={filters.status}
-              onValueChange={(value) => setFilters({...filters, status: value})}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="px-3 py-2 border rounded-md text-sm"
             >
-              <SelectTrigger id="status-filter" className="w-full sm:w-[150px]">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="assigned">Assigned</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="">All Status</option>
+              <option value="unassigned">Unassigned</option>
+              <option value="assigned">Assigned</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            <Label htmlFor="priority-filter" className="text-sm font-medium">Priority</Label>
-            <Select
+            <label className="text-sm font-medium flex items-center">Priority</label>
+            <select
               value={filters.priority}
-              onValueChange={(value) => setFilters({...filters, priority: value})}
+              onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
+              className="px-3 py-2 border rounded-md text-sm"
             >
-              <SelectTrigger id="priority-filter" className="w-full sm:w-[150px]">
-                <SelectValue placeholder="All Priorities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Priorities</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="">All Priority</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            <Label htmlFor="category-filter" className="text-sm font-medium">Category</Label>
-            <Select
+            <label className="text-sm font-medium flex items-center">Category</label>
+            <select
               value={filters.category}
-              onValueChange={(value) => setFilters({...filters, category: value})}
+              onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+              className="px-3 py-2 border rounded-md text-sm"
             >
-              <SelectTrigger id="category-filter" className="w-full sm:w-[150px]">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
-                <SelectItem value="technical">Technical</SelectItem>
-                <SelectItem value="support">Support</SelectItem>
-                <SelectItem value="billing">Billing</SelectItem>
-                <SelectItem value="hr">HR</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="">All Categories</option>
+              <option value="technical">Technical</option>
+              <option value="billing">Billing</option>
+              <option value="support">Support</option>
+              <option value="general">General</option>
+            </select>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            <Label htmlFor="search-filter" className="text-sm font-medium">Search</Label>
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <label className="text-sm font-medium flex items-center">Search</label>
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                id="search-filter"
                 placeholder="Search tickets..."
                 value={filters.search}
-                onChange={(e) => setFilters({...filters, search: e.target.value})}
-                className="w-full pl-8"
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                className="pl-8"
               />
-              {filters.search && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1 h-6 w-6"
-                  onClick={() => setFilters({...filters, search: ''})}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
             </div>
           </div>
         </div>
-        <div className="flex justify-end mt-4 sm:mt-0">
-          <Button
-            variant="outline"
-            onClick={clearFilters}
-            className="w-full sm:w-auto px-4 py-2"
-            disabled={!filters.status && !filters.priority && !filters.category && !filters.search}
-          >
-            <X className="mr-2 h-4 w-4" />
-            Clear Filters
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setFilters({ status: '', priority: '', category: '', search: '' })}>
+            <X className="h-4 w-4 mr-2" />
+            Clear
           </Button>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Data Table */}
       <div className="rounded-md border">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-muted sticky top-0 z-10">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="whitespace-nowrap px-2 py-3">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
                   ))}
                 </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    {filters.status || filters.priority || filters.category || filters.search ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <Filter className="h-8 w-8 text-muted-foreground" />
-                        <p>No tickets match your filters</p>
-                        <Button variant="outline" size="sm" onClick={clearFilters}>
-                          Clear Filters
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                          <span className="text-2xl">📋</span>
-                        </div>
-                        <p className="text-lg font-medium">No tickets assigned to you yet</p>
-                        <p className="text-sm text-muted-foreground">
-                          Tickets assigned to you will appear here. You can assign tickets to yourself from the main Tickets tab.
-                        </p>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No tickets assigned to you.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4">
-        <div className="text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length > 0 && (
-            <span>
-              {table.getFilteredSelectedRowModel().rows.length} of{" "}
-              {table.getFilteredRowModel().rows.length} row(s) selected.
-            </span>
-          )}
+      <div className="flex items-center justify-end space-x-2 py-4">
+        <div className="flex-1 text-sm text-muted-foreground">
+          {table.getFilteredSelectedRowModel().rows.length} of{" "}
+          {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="rows-per-page" className="text-sm font-medium">
-              Rows per page
-            </Label>
-            <Select
-              value={`${table.getState().pagination.pageSize}`}
-              onValueChange={(value) => {
-                table.setPageSize(Number(value))
-              }}
-            >
-              <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-                <SelectValue
-                  placeholder={table.getState().pagination.pageSize}
-                />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[5, 10, 20, 30, 40, 50].map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
-                    {pageSize}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center justify-center text-sm font-medium">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 sm:flex"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only">Go to first page</span>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only">Go to previous page</span>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">Go to next page</span>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 sm:flex"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">Go to last page</span>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
         </div>
       </div>
     </div>
