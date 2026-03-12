@@ -48,24 +48,40 @@ interface PageProps {
 export default function DepartmentAdminDashboard() {
   const { props } = usePage<PageProps>()
   console.log('DepartmentAdminDashboard rendering with props:', props)
+  
+  const user = props.auth.user
+  const isAdmin = user.is_admin
+  const isResolver = user.is_resolver
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [statistics, setStatistics] = useState({
+  
+  // Statistics state - different structure for admin vs resolver
+  const [statistics, setStatistics] = useState<any>(isAdmin ? {
     total_tickets_to_resolve: 0,
     assigned_tickets: 0,
     resolved_tickets: 0,
     overdue_tickets: 0,
     active_resolvers: 0,
     assigned_resolver_groups: 0,
-    // Optional fields for compatibility
     total_tickets: 0,
     open_tickets: 0,
     in_progress_tickets: 0,
     group_tickets: 0,
     individual_tickets: 0
+  } : {
+    total_tickets_assigned: 0,
+    total_resolved_tickets: 0,
+    overdue_tickets: 0,
+    resolver_groups: 0,
+    assigned_tickets: 0,
+    in_progress_tickets: 0,
+    resolved_tickets: 0,
+    group_tickets: 0,
+    individual_tickets: 0
   })
   const [chartData, setChartData] = useState([])
-  const [tickets, setTickets] = useState([])
+  const [tickets, setTickets] = useState<any[]>([])
 
   useEffect(() => {
     console.log('DepartmentAdminDashboard useEffect triggered')
@@ -76,29 +92,44 @@ export default function DepartmentAdminDashboard() {
 
   // Transform backend statistics to frontend format
   const transformStatistics = (backendStats: any) => {
-    return {
-      total_tickets_to_resolve: backendStats.total_tickets_to_resolve || 0,
-      assigned_tickets: backendStats.assigned_tickets || 0,
-      resolved_tickets: backendStats.resolved_tickets || 0,
-      overdue_tickets: backendStats.overdue_tickets || 0,
-      active_resolvers: backendStats.active_resolvers || 0,
-      assigned_resolver_groups: backendStats.assigned_resolver_groups || 0,
-      // Optional fields for compatibility
-      total_tickets: backendStats.total_tickets || backendStats.total_tickets_to_resolve || 0,
-      open_tickets: backendStats.open_tickets || backendStats.total_tickets_to_resolve || 0,
-      in_progress_tickets: backendStats.in_progress_tickets || 0,
-      group_tickets: backendStats.group_tickets || 0,
-      individual_tickets: backendStats.individual_tickets || 0
+    if (isAdmin) {
+      return {
+        total_tickets_to_resolve: backendStats.total_tickets_to_resolve || 0,
+        assigned_tickets: backendStats.assigned_tickets || 0,
+        resolved_tickets: backendStats.resolved_tickets || 0,
+        overdue_tickets: backendStats.overdue_tickets || 0,
+        active_resolvers: backendStats.active_resolvers || 0,
+        assigned_resolver_groups: backendStats.assigned_resolver_groups || 0,
+        total_tickets: backendStats.total_tickets || backendStats.total_tickets_to_resolve || 0,
+        open_tickets: backendStats.open_tickets || backendStats.total_tickets_to_resolve || 0,
+        in_progress_tickets: backendStats.in_progress_tickets || 0,
+        group_tickets: backendStats.group_tickets || 0,
+        individual_tickets: backendStats.individual_tickets || 0
+      }
+    } else {
+      return {
+        total_tickets_assigned: backendStats.total_tickets_assigned || 0,
+        total_resolved_tickets: backendStats.total_resolved_tickets || 0,
+        overdue_tickets: backendStats.overdue_tickets || 0,
+        resolver_groups: backendStats.resolver_groups || 0,
+        assigned_tickets: backendStats.assigned_tickets || 0,
+        in_progress_tickets: backendStats.in_progress_tickets || 0,
+        resolved_tickets: backendStats.resolved_tickets || 0,
+        group_tickets: backendStats.group_tickets || 0,
+        individual_tickets: backendStats.individual_tickets || 0
+      }
     }
   }
 
-  // Refresh statistics
+  // Refresh statistics - role-adaptive
   const refreshStatistics = async () => {
     try {
       setLoading(true)
       setError(null)
       console.log('Fetching statistics...')
-      const response = await fetch('/dept-admin/statistics', {
+      
+      const endpoint = isAdmin ? '/dept-admin/statistics' : '/resolver/statistics'
+      const response = await fetch(endpoint, {
         headers: {
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         }
@@ -120,11 +151,12 @@ export default function DepartmentAdminDashboard() {
     }
   }
 
-  // Refresh chart data
+  // Refresh chart data - role-adaptive
   const refreshChartData = async (timeRange: string = '90d') => {
     try {
       console.log('Fetching chart data for timeRange:', timeRange)
-      const response = await fetch(`/dept-admin/chart-data?timeRange=${timeRange}`, {
+      const endpoint = isAdmin ? `/dept-admin/chart-data?timeRange=${timeRange}` : `/resolver/chart-data?timeRange=${timeRange}`
+      const response = await fetch(endpoint, {
         headers: {
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         }
@@ -143,10 +175,11 @@ export default function DepartmentAdminDashboard() {
     }
   }
 
-  // Fetch tickets
+  // Fetch tickets - role-adaptive
   const fetchTickets = async () => {
     try {
-      const response = await fetch('/dept-admin/tickets', {
+      const endpoint = isAdmin ? '/dept-admin/tickets' : '/resolver/tickets'
+      const response = await fetch(endpoint, {
         headers: {
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         }
@@ -157,7 +190,17 @@ export default function DepartmentAdminDashboard() {
       }
       
       const result = await response.json()
-      setTickets(result.tickets.data || [])
+      
+      // Handle different response formats
+      if (result.tickets && result.tickets.data) {
+        setTickets(result.tickets.data)
+      } else if (result.data) {
+        setTickets(result.data)
+      } else if (Array.isArray(result)) {
+        setTickets(result)
+      } else {
+        setTickets([])
+      }
     } catch (error) {
       console.error('Error fetching tickets:', error)
       setTickets([])
@@ -169,31 +212,31 @@ export default function DepartmentAdminDashboard() {
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 text-red-800 dark:text-red-200 p-4 rounded-lg">
-          <h3 className="font-semibold mb-2">Error Loading Data</h3>
-          <p className="text-sm">{error}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              refreshStatistics()
-              refreshChartData()
-              fetchTickets()
-            }}
-            className="mt-2"
-          >
-            Retry
-          </Button>
-        </div>
+        <h3 className="font-semibold mb-2">Error Loading Data</h3>
+        <p className="text-sm">{error}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            refreshStatistics()
+            refreshChartData()
+            fetchTickets()
+          }}
+          className="mt-2"
+        >
+          Retry
+        </Button>
+      </div>
       )}
 
       {/* Header */}
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Department Admin Dashboard
+            {isAdmin ? 'Department Admin Dashboard' : 'Resolver Dashboard'}
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Manage tickets and resolvers for your department
+            {isAdmin ? 'Manage tickets and resolvers for your department' : 'View and manage your assigned tickets'}
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -213,7 +256,7 @@ export default function DepartmentAdminDashboard() {
       </div>
 
       {/* Statistics Cards */}
-      <SectionCards statistics={statistics} loading={loading} error={error || undefined} />
+      <SectionCards statistics={statistics} loading={loading} error={error || undefined} role={isAdmin ? 'admin' : 'resolver'} />
 
       {/* Chart Area - Full width like section cards */}
       <div className="w-full overflow-x-auto">
