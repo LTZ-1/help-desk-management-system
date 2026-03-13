@@ -1,4 +1,4 @@
-// resolvers-tab.tsx - Fixed version without statistics cards
+// resolvers-tab.tsx - 
 "use client"
 import * as React from "react"
 import { useState, useEffect } from "react"

@@ -12,11 +12,11 @@ interface DepartmentStats {
   overdue_tickets: number
   active_resolvers: number
   assigned_resolver_groups: number
-  // Resolver-specific fields
+  // Resolver-specific 
   total_tickets_assigned?: number
   total_resolved_tickets?: number
   resolver_groups?: number
-  // Optional fields for other contexts
+  
   total_tickets?: number
   open_tickets?: number
   in_progress_tickets?: number
