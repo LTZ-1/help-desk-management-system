@@ -209,7 +209,7 @@ export default function DepartmentAdminDashboard() {
 
   return (
     <div className="space-y-4 p-4 md:p-8 pt-6">
-      {/* Error Display */}
+      {/* Error */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 text-red-800 dark:text-red-200 p-4 rounded-lg">
         <h3 className="font-semibold mb-2">Error Loading Data</h3>

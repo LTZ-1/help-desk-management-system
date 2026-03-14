@@ -73,7 +73,7 @@ export default function DepartmentSelectDialog({
     const validateForm = () => {
         const errors: {[key: string]: string} = {}
 
-        // Department is ALWAYS mandatory for ALL roles
+        // Department is ALWAYS mandatory for ALL 
         if (!selectedDepartment) {
             errors.department = 'Department selection is required'
         }
@@ -97,7 +97,7 @@ export default function DepartmentSelectDialog({
         return Object.keys(errors).length === 0
     }
 
-    // DepartmentSelectDialog.tsx
+
 const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
