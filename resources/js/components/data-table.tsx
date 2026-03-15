@@ -847,7 +847,6 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
   const [availableResolvers, setAvailableResolvers] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
   const [showForwardSection, setShowForwardSection] = useState(false)
-  const [searchResolverQuery, setSearchResolverQuery] = useState('')
 
   // Fetch available resolvers and departments on mount
   useEffect(() => {
@@ -855,16 +854,65 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
     fetchDepartments()
   }, [])
 
+  // Debug: Log when availableResolvers changes
+  useEffect(() => {
+    console.log('availableResolvers state changed:', availableResolvers)
+    console.log('availableResolvers.length:', availableResolvers.length)
+  }, [availableResolvers])
+
   const fetchAvailableResolvers = async () => {
     try {
-      const response = await fetch('/dept-admin/resolvers/available', {
+      console.log('Fetching available resolvers...')
+      console.log('Current user:', props.auth.user)
+      
+      // Use same endpoint as resolvers tab to get active resolvers
+      const response = await fetch('/dept-admin/resolvers', {
         headers: {
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
       })
+      console.log('Response status:', response.status)
+      console.log('Response headers:', response.headers)
+      
       if (response.ok) {
-        const data = await response.json()
-        setAvailableResolvers(data.resolvers || [])
+        const result = await response.json()
+        console.log('Raw resolvers response:', result)
+        console.log('Result.resolvers:', result.resolvers)
+        console.log('Result.resolvers type:', typeof result.resolvers)
+        console.log('Result.resolvers length:', result.resolvers?.length)
+        
+        // Map the data structure from ResolverService exactly like resolvers tab
+        const resolvers = (result.resolvers || []).map((resolver: any) => {
+          console.log('Processing resolver:', resolver)
+          return {
+            id: resolver.id,
+            name: resolver.name,
+            email: resolver.email,
+            branch: resolver.branch,
+            phone: resolver.phone,
+            is_active: resolver.is_active,
+            is_resolver: true, // All resolvers from this endpoint are resolvers
+            last_login: resolver.last_login,
+            resolved_tickets_count: resolver.statistics?.tickets_resolved || 0,
+            department_id: resolver.department_id
+          }
+        })
+        
+        console.log('Mapped resolvers:', resolvers)
+        console.log('Mapped resolvers length:', resolvers.length)
+        
+        // Filter for active resolvers only
+        const activeResolvers = resolvers.filter((resolver: any) => resolver.is_active !== false)
+        console.log('Active resolvers:', activeResolvers)
+        console.log('Active resolvers length:', activeResolvers.length)
+        
+        setAvailableResolvers(activeResolvers)
+        console.log('setAvailableResolvers called with:', activeResolvers)
+      } else {
+        const errorText = await response.text()
+        console.error('Failed to fetch resolvers:', response.statusText, errorText)
       }
     } catch (error) {
       console.error('Error fetching resolvers:', error)
@@ -1023,21 +1071,9 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
     }
   }
 
-  const addResolverToSelection = (resolver: any) => {
-    if (!selectedResolvers.find(r => r.id === resolver.id)) {
-      setSelectedResolvers([...selectedResolvers, resolver])
-    }
-    setSearchResolverQuery('')
-  }
-
   const removeResolverFromSelection = (resolverId: number) => {
     setSelectedResolvers(selectedResolvers.filter(r => r.id !== resolverId))
   }
-
-  const filteredResolvers = availableResolvers.filter(resolver =>
-    resolver.name.toLowerCase().includes(searchResolverQuery.toLowerCase()) ||
-    resolver.email.toLowerCase().includes(searchResolverQuery.toLowerCase())
-  )
 
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
@@ -1186,29 +1222,38 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
                 {resolverType === 'individual' && (
                   <div className="flex flex-col gap-3">
                     <Label>Select Resolver</Label>
-                    <div className="relative">
-                      <Input
-                        placeholder="Search resolvers..."
-                        value={searchResolverQuery}
-                        onChange={(e) => setSearchResolverQuery(e.target.value)}
-                        className="w-full"
-                      />
-                      {searchResolverQuery && filteredResolvers.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                          {filteredResolvers.map((resolver) => (
-                            <div
-                              key={resolver.id}
-                              onClick={() => addResolverToSelection(resolver)}
-                              className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
-                            >
-                              <div className="font-medium">{resolver.name}</div>
-                              <div className="text-sm text-muted-foreground">{resolver.email}</div>
-                              <div className="text-xs text-muted-foreground">ID: {resolver.id}</div>
+                    <Select
+                      value={selectedResolvers[0]?.id?.toString() || ''}
+                      onValueChange={(value) => {
+                        const resolver = availableResolvers.find(r => r.id.toString() === value)
+                        if (resolver) {
+                          setSelectedResolvers([resolver])
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a resolver" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60 overflow-y-auto">
+                        {availableResolvers.length === 0 ? (
+                          <div className="p-2 text-muted-foreground">
+                            No resolvers available
+                            <div className="text-xs text-gray-500 mt-1">
+                              Debug: availableResolvers.length = {availableResolvers.length}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                          </div>
+                        ) : (
+                          availableResolvers.map((resolver) => (
+                            <SelectItem key={resolver.id} value={resolver.id.toString()}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{resolver.name}</span>
+                                <span className="text-sm text-muted-foreground">{resolver.email}</span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     
                     {selectedResolvers.length > 0 && (
                       <div className="flex flex-col gap-2">
@@ -1217,7 +1262,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
                           <div key={resolver.id} className="flex items-center justify-between p-2 border rounded">
                             <div>
                               <div className="font-medium">{resolver.name}</div>
-                              <div className="text-sm text-muted-foreground">ID: {resolver.id}</div>
+                              <div className="text-sm text-muted-foreground">{resolver.email}</div>
                             </div>
                             <Button
                               type="button"
@@ -1246,27 +1291,36 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
                 {resolverType === 'group' && (
                   <div className="flex flex-col gap-3">
                     <Label>Select Resolvers (Minimum 2)</Label>
-                    <div className="relative">
-                      <Input
-                        placeholder="Search resolvers..."
-                        value={searchResolverQuery}
-                        onChange={(e) => setSearchResolverQuery(e.target.value)}
-                        className="w-full"
-                      />
-                      {searchResolverQuery && filteredResolvers.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                          {filteredResolvers.map((resolver) => (
-                            <div
-                              key={resolver.id}
-                              onClick={() => addResolverToSelection(resolver)}
-                              className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                    <div className="border rounded-md p-2 max-h-60 overflow-y-auto">
+                      {availableResolvers.length === 0 ? (
+                        <div className="p-2 text-muted-foreground">No resolvers available</div>
+                      ) : (
+                        availableResolvers.map((resolver) => (
+                          <div key={resolver.id} className="flex items-center space-x-2 p-2 hover:bg-muted">
+                            <input
+                              type="checkbox"
+                              id={`resolver-${resolver.id}`}
+                              checked={selectedResolvers.some(r => r.id === resolver.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  if (!selectedResolvers.some(r => r.id === resolver.id)) {
+                                    setSelectedResolvers([...selectedResolvers, resolver])
+                                  }
+                                } else {
+                                  setSelectedResolvers(selectedResolvers.filter(r => r.id !== resolver.id))
+                                }
+                              }}
+                              className="rounded"
+                            />
+                            <label 
+                              htmlFor={`resolver-${resolver.id}`}
+                              className="flex-1 cursor-pointer"
                             >
                               <div className="font-medium">{resolver.name}</div>
                               <div className="text-sm text-muted-foreground">{resolver.email}</div>
-                              <div className="text-xs text-muted-foreground">ID: {resolver.id}</div>
-                            </div>
-                          ))}
-                        </div>
+                            </label>
+                          </div>
+                        ))
                       )}
                     </div>
                     
@@ -1277,7 +1331,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
                           <div key={resolver.id} className="flex items-center justify-between p-2 border rounded">
                             <div>
                               <div className="font-medium">{resolver.name}</div>
-                              <div className="text-sm text-muted-foreground">ID: {resolver.id}</div>
+                              <div className="text-sm text-muted-foreground">{resolver.email}</div>
                             </div>
                             <Button
                               type="button"
@@ -1297,7 +1351,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof ticketSchema> }) {
                       disabled={loading || selectedResolvers.length < 2}
                       className="w-full"
                     >
-                      {loading ? 'Assigning...' : `Assign to Group (${selectedResolvers.length} selected)`}
+                      {loading ? 'Assigning...' : 'Assign to Group'}
                     </Button>
                   </div>
                 )}
