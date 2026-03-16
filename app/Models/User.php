@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
 {
@@ -21,6 +22,12 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'is_admin',
+        'is_resolver',
+        'department_id',
+        'phone',
+        'is_active',
+        'last_login'
     ];
 
     /**
@@ -43,13 +50,11 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_admin',
-    'department_id',
-    'is_resolver',
-    'phone',
-    'is_active'
+            'is_admin' => 'boolean',
+            'is_resolver' => 'boolean',
+            'is_active' => 'boolean',
+            'last_login' => 'datetime',
         ];
-        
     }
     public function department()
     {
@@ -83,4 +88,63 @@ class User extends Authenticatable
                 ->withPivot('assignment_type', 'status', 'notes', 'assigned_at', 'resolved_at')
                 ->withTimestamps();
 }
+
+    /**
+     * Check if user is a department admin
+     */
+    public function isDepartmentAdmin(): bool
+    {
+        return $this->is_admin && $this->department_id;
+    }
+
+    /**
+     * Check if user is a resolver
+     */
+    public function isResolverRole(): bool
+    {
+        return $this->is_resolver && $this->department_id;
+    }
+
+    /**
+     * Check if user can manage department tickets
+     */
+    public function canManageDepartmentTickets(): bool
+    {
+        return $this->isDepartmentAdmin();
+    }
+
+    /**
+     * Get resolvers in the same department
+     */
+    public function departmentResolvers()
+    {
+        return User::where('department_id', $this->department_id)
+                   ->where('is_resolver', true)
+                   ->where('is_active', true)
+                   ->where('id', '!=', $this->id);
+    }
+
+    /**
+     * Get tickets created by this user
+     */
+    public function createdTickets()
+    {
+        return $this->hasMany(Ticket::class, 'requester_id');
+    }
+
+    /**
+     * Get department tickets for admin
+     */
+    public function departmentTickets()
+    {
+        if (!$this->department_id) {
+            return collect();
+        }
+        
+        $tableName = 'dept_' . $this->department->slug . '_tickets';
+        return DB::table($tableName)
+                ->join('tickets', 'tickets.id', '=', $tableName . '.ticket_id')
+                ->select($tableName . '.*', 'tickets.subject', 'tickets.category', 'tickets.priority', 'tickets.status', 'tickets.created_at')
+                ->orderBy('tickets.created_at', 'desc');
+    }
 }

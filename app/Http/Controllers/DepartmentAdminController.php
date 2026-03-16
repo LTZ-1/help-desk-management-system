@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Inertia\Response;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DepartmentAdminController extends Controller
 {
@@ -86,30 +87,47 @@ class DepartmentAdminController extends Controller
         }
 
         try {
-            // Get tickets directly assigned to this admin user
-            $query = Ticket::with(['assignedDepartment', 'assignedResolver'])
-                ->where('assigned_resolver_id', $user->id)
-                ->where('assigned_department_id', $user->department_id);
+            // Get the department table name
+            $department = Department::findOrFail($user->department_id);
+            $tableName = 'dept_' . $department->slug . '_tickets';
+            
+            // Get tickets from department table where assigned to this admin
+            $query = DB::table($tableName)
+                ->join('tickets', 'tickets.id', '=', $tableName . '.ticket_id')
+                ->select(
+                    'tickets.*',
+                    $tableName . '.assignment_type as dept_assignment_type',
+                    $tableName . '.assigned_resolver_id',
+                    $tableName . '.assignment_group_id',
+                    $tableName . '.assigned_at',
+                    $tableName . '.assigned_by',
+                    $tableName . '.due_date as dept_due_date'
+                )
+                ->where(function($query) use ($user, $tableName) {
+                    // Include tickets where this admin is the assigned resolver
+                    $query->where($tableName . '.assigned_resolver_id', $user->id);
+                })
+                ->where('tickets.assigned_department_id', $user->department_id);
 
             // Apply filters if provided
             if ($request->status && $request->status !== '') {
-                $query->where('status', $request->status);
+                $query->where('tickets.status', $request->status);
             }
             if ($request->priority && $request->priority !== '') {
-                $query->where('priority', $request->priority);
+                $query->where('tickets.priority', $request->priority);
             }
             if ($request->category && $request->category !== '') {
-                $query->where('category', $request->category);
+                $query->where('tickets.category', $request->category);
             }
             if ($request->search && $request->search !== '') {
                 $query->where(function($q) use ($request) {
-                    $q->where('ticket_number', 'like', '%' . $request->search . '%')
-                      ->orWhere('subject', 'like', '%' . $request->search . '%');
+                    $q->where('tickets.ticket_number', 'like', '%' . $request->search . '%')
+                      ->orWhere('tickets.subject', 'like', '%' . $request->search . '%');
                 });
             }
 
             // Order by latest first
-            $query->orderBy('created_at', 'desc');
+            $query->orderBy('tickets.created_at', 'desc');
 
             $tickets = $query->get();
 
@@ -123,14 +141,15 @@ class DepartmentAdminController extends Controller
                     'status' => $ticket->status,
                     'priority' => $ticket->priority,
                     'category' => $ticket->category,
-                    'created_at' => $ticket->created_at->toISOString(),
-                    'due_date' => $ticket->due_date ? $ticket->due_date->toISOString() : null,
+                    'created_at' => $ticket->created_at,
+                    'due_date' => $ticket->dept_due_date, // Use department table due date
                     'assigned_to' => $ticket->assigned_resolver_id,
-                    'assigned_resolver_name' => $ticket->assignedResolver ? $ticket->assignedResolver->name : null,
-                    'assignment_type' => $ticket->assignment_type,
+                    'assignment_type' => $ticket->dept_assignment_type, // Use department table assignment type
                     'resolver_id' => $ticket->assigned_resolver_id,
                     'assigned_resolver_id' => $ticket->assigned_resolver_id,
-                    'group_id' => $ticket->group_id,
+                    'group_id' => $ticket->assignment_group_id,
+                    'assigned_at' => $ticket->assigned_at,
+                    'assigned_by' => $ticket->assigned_by,
                 ];
             });
 

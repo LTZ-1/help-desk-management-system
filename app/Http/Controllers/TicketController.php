@@ -8,22 +8,19 @@ use App\Models\Resolver;
 use App\Models\Department;
 use App\Models\TicketAssignment;
 use App\Models\TicketHistory;
-use App\Services\DepartmentRoutingService; // ADD THI
+use App\Models\TicketRouting;
+use App\Models\User;
 use Auth;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use App\Models\User;
 use Illuminate\Support\Str;
 
 class TicketController extends Controller
 {
-    
-       // ADD THIS PROPERTY
     protected $departmentRoutingService;
-         public function __construct()
+
+    public function __construct()
     {
         $this->departmentRoutingService = new DepartmentRoutingService();
     }
@@ -121,25 +118,37 @@ class TicketController extends Controller
                 'attachment' => $validated['attachment'] ?? null,
                 'status' => 'open'
             ]);
-                  // NEW: Route ticket to appropriate department and store in department table
-            $department = $this->departmentRoutingService->routeTicket($ticket);
+                  // NEW: Route ticket to appropriate department using new routing system
+            $targetDepartment = Department::where('name', 'like', '%' . $validated['recipant'] . '%')
+                                        ->orWhere('slug', $validated['recipant'])
+                                        ->first();
             
-            if ($department) {
-                $this->departmentRoutingService->storeInDepartmentTable($ticket, $department);
+            if ($targetDepartment) {
+                // Create routing record
+                TicketRouting::routeTicket($ticket, $targetDepartment, $user);
                 
-            
-            // Also update the main ticket with the assigned department
-            $ticket->assigned_department_id = $department->id;
-            $ticket->save();
-            \Log::debug('Ticket routed to department:', [
-                    'department_id' => $department->id,
-                    'department_name' => $department->name
+                // Add to department ticket table
+                $tableName = 'dept_' . $targetDepartment->slug . '_tickets';
+                DB::table($tableName)->insert([
+                    'ticket_id' => $ticket->id,
+                    'ticket_number' => $ticket->ticket_number,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+                
+                // Update main ticket with assigned department
+                $ticket->assigned_department_id = $targetDepartment->id;
+                $ticket->save();
+                
+                \Log::debug('Ticket routed to department:', [
+                    'department_id' => $targetDepartment->id,
+                    'department_name' => $targetDepartment->name
                 ]);
             } else {
                 \Log::warning('Could not route ticket to department based on recipant:', [
                     'recipant' => $ticket->recipant
                 ]);
-        }
+            }
            
             // NEW: Log the creation
             TicketHistory::log(
@@ -567,25 +576,22 @@ class TicketController extends Controller
             switch ($action) {
                 case 'assign_myself':
                     // Assign to current user
+                    $assignmentType = 'self';
+                    $resolverIds = [$user->id];
+
+                    // Update department table
+                    $ticket->assignInDepartment(
+                        $user->department, 
+                        'self', 
+                        null, null, $user->id, 
+                        $request->due_date
+                    );
+
+                    // Update main ticket
                     $ticket->assigned_resolver_id = $user->id;
                     $ticket->status = 'in_progress';
                     $ticket->assignment_type = 'individual';
-
-                    $resolverIds = [$user->id];
-                    $assignmentType = 'individual';
-
-                    // Create resolver_tickets entry
-                    ResolverTicket::updateOrCreate(
-                        [
-                            'resolver_id' => $user->id,
-                            'ticket_id' => $ticket->id
-                        ],
-                        [
-                            'assignment_type' => 'individual',
-                            'status' => 'in_progress',
-                            'assigned_at' => now()
-                        ]
-                    );
+                    $ticket->save();
 
                     break;
 
@@ -598,25 +604,22 @@ class TicketController extends Controller
                         throw new \Exception('Resolver must be from the same department');
                     }
 
+                    $assignmentType = 'individual';
+                    $resolverIds = [$resolver->id];
+
+                    // Update department table
+                    $ticket->assignInDepartment(
+                        $user->department, 
+                        'individual', 
+                        $resolver->id, null, $user->id, 
+                        $request->due_date
+                    );
+
+                    // Update main ticket
                     $ticket->assigned_resolver_id = $resolver->id;
                     $ticket->status = 'assigned';
                     $ticket->assignment_type = 'individual';
-
-                    $resolverIds = [$resolver->id];
-                    $assignmentType = 'individual';
-
-                    // Create resolver_tickets entry
-                    ResolverTicket::updateOrCreate(
-                        [
-                            'resolver_id' => $resolver->id,
-                            'ticket_id' => $ticket->id
-                        ],
-                        [
-                            'assignment_type' => 'individual',
-                            'status' => 'assigned',
-                            'assigned_at' => now()
-                        ]
-                    );
+                    $ticket->save();
 
                     break;
 
@@ -634,27 +637,22 @@ class TicketController extends Controller
                         throw new \Exception('All resolvers must be from the same department');
                     }
 
+                    $assignmentType = 'group';
+
+                    // Update department table
+                    $ticket->assignInDepartment(
+                        $user->department, 
+                        'group', 
+                        null, $groupId, $user->id, 
+                        $request->due_date
+                    );
+
+                    // Update main ticket
                     $ticket->assigned_resolver_id = null; // No primary resolver for group
                     $ticket->status = 'assigned';
                     $ticket->assignment_type = 'group';
-
-                    $assignmentType = 'group';
-
-                    // Create resolver_tickets entries for all group members
-                    foreach ($resolverIds as $resolverId) {
-                        ResolverTicket::updateOrCreate(
-                            [
-                                'resolver_id' => $resolverId,
-                                'ticket_id' => $ticket->id
-                            ],
-                            [
-                                'assignment_type' => 'group',
-                                'status' => 'assigned',
-                                'assigned_at' => now(),
-                                'notes' => "Group assignment ID: {$groupId}"
-                            ]
-                        );
-                    }
+                    $ticket->group_id = $groupId;
+                    $ticket->save();
 
                     break;
 

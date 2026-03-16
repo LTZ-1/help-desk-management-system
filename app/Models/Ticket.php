@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 class Ticket extends Model
 {
     //
@@ -92,6 +93,22 @@ class Ticket extends Model
     public function histories(): HasMany
     {
         return $this->hasMany(TicketHistory::class);
+    }
+
+    /**
+     * Ticket has many routing records
+     */
+    public function routing(): HasMany
+    {
+        return $this->hasMany(TicketRouting::class);
+    }
+
+    /**
+     * Get current routing
+     */
+    public function currentRouting()
+    {
+        return $this->routing()->latest()->first();
     }
 
     /**
@@ -290,6 +307,83 @@ class Ticket extends Model
             "Ticket marked as resolved" . ($notes ? ": {$notes}" : ""),
             ['resolved_at' => now()->format('Y-m-d H:i:s')]
         );
+
+        return $this;
+    }
+
+    /**
+     * Route ticket to department
+     */
+    public function routeToDepartment(Department $department, User $routedBy = null, $notes = null)
+    {
+        // Create routing record
+        TicketRouting::routeTicket($this, $department, $routedBy, $notes);
+        
+        // Add to department ticket table
+        $tableName = 'dept_' . $department->slug . '_tickets';
+        DB::table($tableName)->insert([
+            'ticket_id' => $this->id,
+            'ticket_number' => $this->ticket_number,
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Forward ticket to another department
+     */
+    public function forwardToDepartment(Department $fromDepartment, Department $toDepartment, User $forwardedBy, $notes = null)
+    {
+        // Create forwarding routing record
+        TicketRouting::forwardTicket($this, $fromDepartment, $toDepartment, $forwardedBy, $notes);
+        
+        // Update subject with forwarded prefix
+        $this->subject = '[FORWARDED] ' . $this->subject;
+        $this->save();
+        
+        // Add to new department ticket table
+        $tableName = 'dept_' . $toDepartment->slug . '_tickets';
+        DB::table($tableName)->insert([
+            'ticket_id' => $this->id,
+            'ticket_number' => $this->ticket_number,
+            'assignment_type' => 'forwarded',
+            'forward_notes' => $notes,
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Assign to resolver in department table
+     */
+    public function assignInDepartment(Department $department, $assignmentType, $resolverId = null, $groupId = null, $assignedBy = null, $dueDate = null, $notes = null)
+    {
+        $tableName = 'dept_' . $department->slug . '_tickets';
+        
+        $updateData = [
+            'assignment_type' => $assignmentType,
+            'assigned_at' => now(),
+            'assigned_by' => $assignedBy,
+            'due_date' => $dueDate,
+            'assignment_notes' => $notes,
+            'updated_at' => now()
+        ];
+
+        if ($assignmentType === 'individual' && $resolverId) {
+            $updateData['assigned_resolver_id'] = $resolverId;
+        } elseif ($assignmentType === 'group' && $groupId) {
+            $updateData['assignment_group_id'] = $groupId;
+        } elseif ($assignmentType === 'self' && $assignedBy) {
+            $updateData['assigned_resolver_id'] = $assignedBy;
+        }
+
+        DB::table($tableName)
+            ->where('ticket_id', $this->id)
+            ->update($updateData);
 
         return $this;
     }
