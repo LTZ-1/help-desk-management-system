@@ -126,6 +126,10 @@ export const ticketSchema = z.object({
   updated_at: z.string(),
   requester_name: z.string(),
   requester_email: z.string(),
+  requester_type: z.string(),
+  department: z.string(),
+  brunch: z.string(),
+  recipant: z.string(),
   assigned_department: z.object({
     id: z.number(),
     name: z.string(),
@@ -303,6 +307,17 @@ const columns: ColumnDef<z.infer<typeof ticketSchema>>[] = [
       const resolver = row.original.assigned_resolver
       return resolver ? resolver.name : "Unassigned"
     },
+  },
+  {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => (
+      <div className="w-32">
+        <Badge variant="outline" className="text-muted-foreground px-1.5">
+          {row.original.department || 'Unknown'}
+        </Badge>
+      </div>
+    ),
   },
   {
     accessorKey: "due_date",

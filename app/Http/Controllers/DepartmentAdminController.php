@@ -94,6 +94,7 @@ class DepartmentAdminController extends Controller
             // Get tickets from department table where assigned to this admin
             $query = DB::table($tableName)
                 ->join('tickets', 'tickets.id', '=', $tableName . '.ticket_id')
+                ->leftJoin('users as requester', 'requester.id', '=', 'tickets.requester_id')
                 ->select(
                     'tickets.*',
                     $tableName . '.assignment_type as dept_assignment_type',
@@ -101,7 +102,14 @@ class DepartmentAdminController extends Controller
                     $tableName . '.assignment_group_id',
                     $tableName . '.assigned_at',
                     $tableName . '.assigned_by',
-                    $tableName . '.due_date as dept_due_date'
+                    $tableName . '.due_date as dept_due_date',
+                    'requester.name as requester_name',
+                    'requester.email as requester_email',
+                    DB::raw('CASE 
+                        WHEN requester.is_admin = 1 THEN "admin"
+                        WHEN requester.is_resolver = 1 THEN "resolver"
+                        ELSE "user"
+                    END as requester_type')
                 )
                 ->where(function($query) use ($user, $tableName) {
                     // Include tickets where this admin is the assigned resolver
@@ -150,6 +158,12 @@ class DepartmentAdminController extends Controller
                     'group_id' => $ticket->assignment_group_id,
                     'assigned_at' => $ticket->assigned_at,
                     'assigned_by' => $ticket->assigned_by,
+                    'resolved_at' => $ticket->resolved_at,
+                    // Additional fields for My Tickets tab
+                    'requester_id' => $ticket->requester_id,
+                    'requester_name' => $ticket->requester_name,
+                    'requester_email' => $ticket->requester_email,
+                    'requester_type' => $ticket->requester_type ?? 'user', // Use CASE statement result
                 ];
             });
 
@@ -454,6 +468,46 @@ class DepartmentAdminController extends Controller
         $chartData = $this->ticketService->getDepartmentChartData($user->department_id, $timeRange);
 
         return response()->json($chartData);
+    }
+
+    /**
+     * Resolve a ticket
+     */
+    public function resolveTicket(Request $request, Ticket $ticket)
+    {
+        $user = Auth::user();
+        
+        // Validate department access
+        if ($ticket->assigned_department_id !== $user->department_id) {
+            return response()->json(['error' => 'Access denied'], 403);
+        }
+
+        // Validate ticket can be resolved
+        if ($ticket->status === 'resolved' || $ticket->status === 'closed') {
+            return response()->json(['error' => 'Ticket is already resolved or closed'], 400);
+        }
+
+        try {
+            // Update ticket status
+            $ticket->status = 'resolved';
+            $ticket->resolved_at = now();
+            $ticket->save();
+
+            // Update department table
+            $department = Department::find($user->department_id);
+            $tableName = 'dept_' . $department->slug . '_tickets';
+            
+            DB::table($tableName)
+                ->where('ticket_id', $ticket->id)
+                ->update([
+                    'status' => 'resolved',
+                    'resolved_at' => now()
+                ]);
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to resolve ticket: ' . $e->getMessage()], 500);
+        }
     }
 
     /**

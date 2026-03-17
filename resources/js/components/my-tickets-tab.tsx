@@ -60,6 +60,19 @@ interface SimpleTicket {
   resolver_id: number | null
   assigned_resolver_id: number | null
   group_id: number | null
+  // Additional fields for My Tickets tab
+  requester_id: number
+  requester_type: string
+  requester_name: string
+  requester_email: string
+  assigned_at: string | null
+  resolved_at: string | null
+  group_members?: Array<{
+    id: number
+    name: string
+    email: string
+    phone: string
+  }>
 }
 
 interface PageProps {
@@ -73,88 +86,6 @@ interface PageProps {
   }
   [key: string]: any // Add index signature to satisfy Inertia.js constraint
 }
-
-// Simple columns - same as admin page
-const columns: ColumnDef<SimpleTicket>[] = [
-  {
-    accessorKey: "ticket_number",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Ticket #
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => <div className="font-medium">{row.getValue("ticket_number")}</div>,
-  },
-  {
-    accessorKey: "subject",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Subject
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => <div>{row.getValue("subject")}</div>,
-  },
-  {
-    accessorKey: "category",
-    header: "Category",
-    cell: ({ row }) => <div>{row.getValue("category")}</div>,
-  },
-  {
-    accessorKey: "priority",
-    header: "Priority",
-    cell: ({ row }) => <div>{row.getValue("priority")}</div>,
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <div>{row.getValue("status")}</div>,
-  },
-  {
-    accessorKey: "assigned_resolver_name",
-    header: "Assigned To",
-    cell: ({ row }) => <div>{row.getValue("assigned_resolver_name") || "Unassigned"}</div>,
-  },
-  {
-    accessorKey: "due_date",
-    header: "Due Date",
-    cell: ({ row }) => {
-      const date = row.getValue("due_date") as string | null
-      return date ? new Date(date).toLocaleDateString() : "Not set"
-    },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const ticket = row.original
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>View Details</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Mark as Resolved</DropdownMenuItem>
-            <DropdownMenuItem>Close Ticket</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
-  },
-]
 
 export function MyTicketsTab() {
   const { props } = usePage<PageProps>()
@@ -173,6 +104,182 @@ export function MyTicketsTab() {
     category: '',
     search: ''
   })
+
+  // Handle resolve ticket
+  const handleResolveTicket = async (ticket: SimpleTicket) => {
+    try {
+      const response = await fetch(`/dept-admin/resolve-ticket/${ticket.id}`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'resolved',
+          resolved_at: new Date().toISOString(),
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Ticket marked as resolved')
+        fetchMyTickets() // Refresh data
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to resolve ticket')
+      }
+    } catch (error) {
+      console.error('Error resolving ticket:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to resolve ticket')
+    }
+  }
+
+  // Define columns inside component to access handleResolveTicket
+  const columns: ColumnDef<SimpleTicket>[] = [
+    {
+      accessorKey: "ticket_number",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Ticket #
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => <div className="font-medium">{row.getValue("ticket_number")}</div>,
+    },
+    {
+      accessorKey: "subject",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Subject
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => <div>{row.getValue("subject")}</div>,
+    },
+    {
+      accessorKey: "category",
+      header: "Category",
+      cell: ({ row }) => <div>{row.getValue("category")}</div>,
+    },
+    {
+      accessorKey: "priority",
+      header: "Priority",
+      cell: ({ row }) => <div>{row.getValue("priority")}</div>,
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => <div>{row.getValue("status")}</div>,
+    },
+    {
+      accessorKey: "assignment_type",
+      header: "Assignment Type",
+      cell: ({ row }) => <div>{row.getValue("assignment_type")}</div>,
+    },
+    {
+      accessorKey: "assigned_to",
+      header: "Assigned To",
+      cell: ({ row }) => <div>{row.getValue("assigned_to") || "Unassigned"}</div>,
+    },
+    {
+      accessorKey: "due_date",
+      header: "Due Date",
+      cell: ({ row }) => {
+        const date = row.getValue("due_date") as string | null
+        return date ? new Date(date).toLocaleDateString() : "Not set"
+      },
+    },
+    // Additional columns for My Tickets tab
+    {
+      accessorKey: "requester_id",
+      header: "Requester ID",
+      cell: ({ row }) => <div>{row.getValue("requester_id")}</div>,
+    },
+    {
+      accessorKey: "requester_type",
+      header: "Requester Type",
+      cell: ({ row }) => <div>{row.getValue("requester_type")}</div>,
+    },
+    {
+      accessorKey: "requester_name",
+      header: "Requester Name",
+      cell: ({ row }) => <div>{row.getValue("requester_name")}</div>,
+    },
+    {
+      accessorKey: "requester_email",
+      header: "Requester Email",
+      cell: ({ row }) => <div>{row.getValue("requester_email")}</div>,
+    },
+    {
+      accessorKey: "assigned_resolver_id",
+      header: "Assigned Resolver ID",
+      cell: ({ row }) => {
+        const assignmentType = row.getValue("assignment_type")
+        if (assignmentType === 'group') {
+          return <div>Group: {row.getValue("group_id")}</div>
+        }
+        return <div>{row.getValue("assigned_resolver_id")}</div>
+      },
+    },
+    {
+      accessorKey: "group_id",
+      header: "Group ID",
+      cell: ({ row }) => <div>{row.getValue("group_id") || "N/A"}</div>,
+    },
+    {
+      accessorKey: "assigned_at",
+      header: "Assigned At",
+      cell: ({ row }) => {
+        const date = row.getValue("assigned_at") as string | null
+        return date ? new Date(date).toLocaleDateString() : "Not assigned"
+      },
+    },
+    {
+      accessorKey: "resolved_at",
+      header: "Resolved At",
+      cell: ({ row }) => {
+        const date = row.getValue("resolved_at") as string | null
+        return date ? new Date(date).toLocaleDateString() : "Not resolved"
+      },
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const ticket = row.original
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem>View Details</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {row.original.status !== 'resolved' && (
+                <DropdownMenuItem 
+                  onClick={() => handleResolveTicket(row.original)}
+                  className="text-green-600 hover:text-green-700"
+                >
+                  Mark as Resolved
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem>Close Ticket</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      },
+    },
+  ]
 
   // Simple fetch function
   const fetchMyTickets = async () => {

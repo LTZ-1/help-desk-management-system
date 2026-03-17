@@ -82,6 +82,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('my-tickets', [DepartmentAdminController::class, 'getMyTickets'])
             ->name('dept.admin.my-tickets');
         
+        Route::post('resolve-ticket/{ticket}', [DepartmentAdminController::class, 'resolveTicket'])
+            ->name('dept.admin.resolve.ticket');
+        
         // Assignment Operations
         Route::post('tickets/{ticket}/assign', [DepartmentAdminController::class, 'assignTicket'])
             ->name('dept.admin.assign.ticket');

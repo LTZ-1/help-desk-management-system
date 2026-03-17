@@ -1,9 +1,11 @@
 // chart-area-interactive.tsx
 "use client"
 import * as React from "react"
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Legend } from "recharts"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardAction,
@@ -43,12 +45,16 @@ interface ChartAreaInteractiveProps {
 
 const chartConfig = {
   tickets: {
-    label: "Tickets",
-    color: "hsl(var(--chart-1))",
+    label: "Tickets Created",
+    color: "hsl(221, 83%, 53%)", // Blue
+  },
+  assigned_tickets: {
+    label: "Tickets Assigned", 
+    color: "hsl(142, 71%, 45%)", // Green
   },
   resolved_tickets: {
-    label: "Resolved Tickets",
-    color: "hsl(var(--chart-2))",
+    label: "Tickets Resolved",
+    color: "hsl(262, 83%, 58%)", // Purple
   },
 } satisfies ChartConfig
 
@@ -56,6 +62,7 @@ export function ChartAreaInteractive({ chartData, loading, error, chartType = 't
   const isMobile = useIsMobile()
   const [timeRange, setTimeRange] = React.useState("90d")
   const [filteredData, setFilteredData] = React.useState<any[]>([])
+  const [selectedMetrics, setSelectedMetrics] = React.useState<string[]>(['tickets', 'assigned_tickets', 'resolved_tickets'])
 
   React.useEffect(() => {
     if (isMobile) {
@@ -88,9 +95,13 @@ export function ChartAreaInteractive({ chartData, loading, error, chartType = 't
     }
   }, [chartData, timeRange])
 
-  // Determine data key and gradient based on chart type
-  const dataKey = chartType === "resolved_tickets" ? "resolved_tickets" : "tickets"
-  const gradientId = `gradient-${chartType}`
+  const toggleMetric = (metric: string) => {
+    setSelectedMetrics(prev => 
+      prev.includes(metric) 
+        ? prev.filter(m => m !== metric)
+        : [...prev, metric]
+    )
+  }
 
   if (error) {
     return (
@@ -134,15 +145,15 @@ export function ChartAreaInteractive({ chartData, loading, error, chartType = 't
       </CardHeader>
       <CardContent className="px-2 sm:px-6">
         {loading ? (
-          <div className="flex h-[200px] sm:h-[300px] items-center justify-center">
+          <div className="flex h-[300px] items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : filteredData.length === 0 ? (
-          <div className="flex h-[200px] sm:h-[300px] items-center justify-center text-muted-foreground">
-            No data available for the selected time range
+          <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+            No data available for selected time range
           </div>
         ) : (
-          <div className="w-full h-[200px] sm:h-[300px]">
+          <div className="w-full h-[300px]">
             <ChartContainer
               config={chartConfig}
               className="w-full h-full"
@@ -150,9 +161,17 @@ export function ChartAreaInteractive({ chartData, loading, error, chartType = 't
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={filteredData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                   <defs>
-                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-tickets)" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="var(--color-tickets)" stopOpacity={0.1}/>
+                    <linearGradient id="gradient-tickets" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.1}/>
+                    </linearGradient>
+                    <linearGradient id="gradient-assigned_tickets" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.1}/>
+                    </linearGradient>
+                    <linearGradient id="gradient-resolved_tickets" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(262, 83%, 58%)" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="hsl(262, 83%, 58%)" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -194,17 +213,71 @@ export function ChartAreaInteractive({ chartData, loading, error, chartType = 't
                       />
                     }
                   />
-                  <Area
-                    dataKey={dataKey}
-                    type="monotone"
-                    fill={`url(#${gradientId})`}
-                    fillOpacity={0.6}
-                    stroke="var(--color-tickets)"
-                    strokeWidth={2}
-                  />
+                  {selectedMetrics.includes('tickets') && (
+                    <Area
+                      dataKey="tickets"
+                      type="monotone"
+                      fill={`url(#gradient-tickets)`}
+                      fillOpacity={0.6}
+                      stroke="hsl(221, 83%, 53%)"
+                      strokeWidth={2}
+                    />
+                  )}
+                  {selectedMetrics.includes('assigned_tickets') && (
+                    <Area
+                      dataKey="assigned_tickets"
+                      type="monotone"
+                      fill={`url(#gradient-assigned_tickets)`}
+                      fillOpacity={0.6}
+                      stroke="hsl(142, 71%, 45%)"
+                      strokeWidth={2}
+                    />
+                  )}
+                  {selectedMetrics.includes('resolved_tickets') && (
+                    <Area
+                      dataKey="resolved_tickets"
+                      type="monotone"
+                      fill={`url(#gradient-resolved_tickets)`}
+                      fillOpacity={0.6}
+                      stroke="hsl(262, 83%, 58%)"
+                      strokeWidth={2}
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </ChartContainer>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(221, 83%, 53%)" }}></div>
+                <label className="text-sm font-medium">Tickets Created</label>
+                <input
+                  type="checkbox"
+                  checked={selectedMetrics.includes('tickets')}
+                  onChange={() => toggleMetric('tickets')}
+                  className="rounded"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(142, 71%, 45%)" }}></div>
+                <label className="text-sm font-medium">Tickets Assigned</label>
+                <input
+                  type="checkbox"
+                  checked={selectedMetrics.includes('assigned_tickets')}
+                  onChange={() => toggleMetric('assigned_tickets')}
+                  className="rounded"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(262, 83%, 58%)" }}></div>
+                <label className="text-sm font-medium">Tickets Resolved</label>
+                <input
+                  type="checkbox"
+                  checked={selectedMetrics.includes('resolved_tickets')}
+                  onChange={() => toggleMetric('resolved_tickets')}
+                  className="rounded"
+                />
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

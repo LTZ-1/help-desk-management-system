@@ -95,7 +95,7 @@ class TicketService
     }
 
     /**
-     * Get tickets per day chart data for a department
+     * Get department chart data with multiple metrics
      */
     public function getDepartmentChartData(int $departmentId, string $timeRange = '90d'): array
     {
@@ -103,23 +103,46 @@ class TicketService
         $startDate = clone $endDate;
         
         switch ($timeRange) {
-            case '30d':
-                $startDate->subDays(30);
-                break;
             case '7d':
                 $startDate->subDays(7);
+                break;
+            case '30d':
+                $startDate->subDays(30);
                 break;
             default: // 90d
                 $startDate->subDays(90);
                 break;
         }
 
+        // Get tickets created per day
         $ticketsByDate = Ticket::where('assigned_department_id', $departmentId)
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as tickets')
             ->groupBy('date')
             ->orderBy('date')
-            ->get();
+            ->get()
+            ->keyBy('date');
+
+        // Get tickets assigned per day
+        $assignedByDate = DB::table('dept_' . Department::find($departmentId)->slug . '_tickets')
+            ->join('tickets', 'tickets.id', '=', 'dept_' . Department::find($departmentId)->slug . '_tickets.ticket_id')
+            ->whereNotNull('dept_' . Department::find($departmentId)->slug . '_tickets.assigned_resolver_id')
+            ->whereBetween('dept_' . Department::find($departmentId)->slug . '_tickets.assigned_at', [$startDate, $endDate])
+            ->selectRaw('DATE(dept_' . Department::find($departmentId)->slug . '_tickets.assigned_at) as date, COUNT(*) as assigned_tickets')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->keyBy('date');
+
+        // Get tickets resolved per day
+        $resolvedByDate = Ticket::where('assigned_department_id', $departmentId)
+            ->where('status', 'resolved')
+            ->whereBetween('resolved_at', [$startDate, $endDate])
+            ->selectRaw('DATE(resolved_at) as date, COUNT(*) as resolved_tickets')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->keyBy('date');
 
         // Format data for the chart
         $chartData = [];
@@ -127,11 +150,11 @@ class TicketService
         
         while ($currentDate <= $endDate) {
             $dateStr = $currentDate->format('Y-m-d');
-            $count = $ticketsByDate->firstWhere('date', $dateStr)->count ?? 0;
-            
             $chartData[] = [
                 'date' => $dateStr,
-                'tickets' => $count
+                'tickets' => $ticketsByDate[$dateStr]->tickets ?? 0,
+                'assigned_tickets' => $assignedByDate[$dateStr]->assigned_tickets ?? 0,
+                'resolved_tickets' => $resolvedByDate[$dateStr]->resolved_tickets ?? 0
             ];
             
             $currentDate->addDay();
