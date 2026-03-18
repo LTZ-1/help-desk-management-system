@@ -1,4 +1,4 @@
-// resolvers-table.tsx - Responsive version
+// resolvers-table.tsx - Responsive 
 "use client"
 import * as React from "react"
 import { useState, useEffect } from "react"

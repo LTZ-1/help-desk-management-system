@@ -14,7 +14,7 @@ use Inertia\Response;
 class ResolverDashboardController extends Controller
 {
     /**
-     * Display the resolver dashboard
+     * Display resolver dashboard
      */
     public function index(Request $request): Response
     {

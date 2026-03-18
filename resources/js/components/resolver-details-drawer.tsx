@@ -1,4 +1,4 @@
-// resolver-details-drawer.tsx - Drawer for resolver details and actions
+// resolver-details-drawer.tsx - 
 "use client"
 import * as React from "react"
 import { useState } from "react"
