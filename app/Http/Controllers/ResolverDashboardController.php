@@ -26,7 +26,7 @@ class ResolverDashboardController extends Controller
 
         $statistics = $this->getResolverStatisticsData($resolver);
         $recentTickets = $this->getResolverTicketsData($resolver, ['per_page' => 5]);
-        $chartData = $this->getResolverChartDataData($resolver);
+        $chartData = $this->getResolverChartDataPrivate($resolver);
 
         return Inertia::render('ResolverDashboard', [
             'statistics' => $statistics,
@@ -84,7 +84,7 @@ class ResolverDashboardController extends Controller
         }
 
         $timeRange = $request->get('timeRange', '90d');
-        $chartData = $this->getResolverChartData($resolver, $timeRange);
+        $chartData = $this->getResolverChartDataPrivate($resolver, $timeRange);
 
         return response()->json($chartData);
     }
@@ -165,29 +165,45 @@ class ResolverDashboardController extends Controller
 
         $stats = [
             'total_tickets_assigned' => DB::table($tableName)
-                ->where('assigned_resolver_id', $resolver->id)
-                ->orWhere('assignment_type', 'group')
+                ->where(function($query) use ($resolver) {
+                    $query->where('assigned_resolver_id', $resolver->id)
+                          ->orWhere('assignment_type', 'group');
+                })
                 ->count(),
             
             'assigned_tickets' => DB::table($tableName)
-                ->where('assigned_resolver_id', $resolver->id)
-                ->where('status', 'assigned')
+                ->join('tickets', 'tickets.id', '=', $tableName . '.ticket_id')
+                ->where(function($query) use ($resolver) {
+                    $query->where($tableName . '.assigned_resolver_id', $resolver->id)
+                          ->orWhere($tableName . '.assignment_type', 'group');
+                })
+                ->where('tickets.status', 'assigned')
                 ->count(),
             
             'in_progress_tickets' => DB::table($tableName)
-                ->where('assigned_resolver_id', $resolver->id)
-                ->where('status', 'in_progress')
+                ->join('tickets', 'tickets.id', '=', $tableName . '.ticket_id')
+                ->where(function($query) use ($resolver) {
+                    $query->where($tableName . '.assigned_resolver_id', $resolver->id)
+                          ->orWhere($tableName . '.assignment_type', 'group');
+                })
+                ->where('tickets.status', 'in_progress')
                 ->count(),
             
             'resolved_tickets' => DB::table($tableName)
                 ->join('tickets', 'tickets.id', '=', $tableName . '.ticket_id')
-                ->where($tableName . '.assigned_resolver_id', $resolver->id)
+                ->where(function($query) use ($resolver) {
+                    $query->where($tableName . '.assigned_resolver_id', $resolver->id)
+                          ->orWhere($tableName . '.assignment_type', 'group');
+                })
                 ->where('tickets.status', 'resolved')
                 ->count(),
             
             'overdue_tickets' => DB::table($tableName)
                 ->join('tickets', 'tickets.id', '=', $tableName . '.ticket_id')
-                ->where($tableName . '.assigned_resolver_id', $resolver->id)
+                ->where(function($query) use ($resolver) {
+                    $query->where($tableName . '.assigned_resolver_id', $resolver->id)
+                          ->orWhere($tableName . '.assignment_type', 'group');
+                })
                 ->where($tableName . '.due_date', '<', now())
                 ->whereNotIn('tickets.status', ['resolved', 'closed'])
                 ->count(),
@@ -290,7 +306,7 @@ class ResolverDashboardController extends Controller
     /**
      * Get resolver chart data
      */
-    private function getResolverChartDataData($resolver, $timeRange = '90d')
+    private function getResolverChartDataPrivate($resolver, $timeRange = '90d')
     {
         if (!$resolver->department_id) {
             return [];

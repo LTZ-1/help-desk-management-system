@@ -10,7 +10,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-class CreateSampleTicketsSeeder extends Seeder
+class CreateAdditionalSampleTicketsSeeder extends Seeder
 {
     /**
      * Get realistic assignment type for integratable project
@@ -33,10 +33,10 @@ class CreateSampleTicketsSeeder extends Seeder
 
         // Weighted distribution for realistic scenario
         $weights = [
-            'unassigned' => 15, // 15% unassigned
-            'individual' => 50, // 50% assigned to resolvers
+            'unassigned' => 10, // 10% unassigned (lower for additional tickets)
+            'individual' => 60, // 60% assigned to resolvers
             'group' => 20,   // 20% group assignments
-            'self' => 15    // 15% admin self-assignments
+            'self' => 10    // 10% admin self-assignments
         ];
 
         $random = rand(1, 100);
@@ -58,7 +58,7 @@ class CreateSampleTicketsSeeder extends Seeder
     public function run(): void
     {
         // Get users and departments
-        $users = User::whereNotNull('department_id')->get(); // Only get users with department_id
+        $users = User::whereNotNull('department_id')->get();
         $departments = Department::all();
         
         if ($users->isEmpty() || $departments->isEmpty()) {
@@ -66,156 +66,102 @@ class CreateSampleTicketsSeeder extends Seeder
             return;
         }
 
-        // Sample ticket data - Updated to match actual department names
-        $sampleTickets = [
+        // Additional sample ticket data for more comprehensive testing
+        $additionalTickets = [
             [
-                'subject' => 'Computer not starting',
-                'description' => 'My computer is not turning on. I have tried restarting it multiple times but nothing happens. The power light is not coming on.',
+                'subject' => 'Laptop battery replacement',
+                'description' => 'My laptop battery is not holding charge anymore. I need a replacement battery.',
                 'category' => 'Hardware',
-                'priority' => 'High',
-                'recipant' => 'IT Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'IT Branch',
-            ],
-            [
-                'subject' => 'Password reset request',
-                'description' => 'I need to reset my password for the email system. I have forgotten my current password.',
-                'category' => 'Software',
                 'priority' => 'Medium',
                 'recipant' => 'IT Directorate',
                 'requester_type' => 'Staff',
                 'brunch' => 'IT Branch',
             ],
             [
-                'subject' => 'Leave application inquiry',
-                'description' => 'I would like to inquire about the leave application process for annual leave. How many days in advance do I need to apply?',
-                'category' => 'Policy',
-                'priority' => 'Low',
-                'recipant' => 'Human Resource Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'HR Branch',
-            ],
-            [
-                'subject' => 'Salary payment issue',
-                'description' => 'I did not receive my salary for this month. Please check what happened with my payment.',
-                'category' => 'Payment',
-                'priority' => 'High',
-                'recipant' => 'Finance Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'Finance Branch',
-            ],
-            [
-                'subject' => 'Network connection problems',
-                'description' => 'The internet connection in my office is very slow. Sometimes it disconnects completely.',
+                'subject' => 'VPN connection issues',
+                'description' => 'I cannot connect to the company VPN from home. It keeps timing out.',
                 'category' => 'Network',
+                'priority' => 'High',
+                'recipant' => 'IT Directorate',
+                'requester_type' => 'Staff',
+                'brunch' => 'IT Branch',
+            ],
+            [
+                'subject' => 'Microsoft Office license',
+                'description' => 'I need a Microsoft Office license for my new computer.',
+                'category' => 'Software',
                 'priority' => 'Medium',
                 'recipant' => 'IT Directorate',
                 'requester_type' => 'Staff',
                 'brunch' => 'IT Branch',
             ],
             [
-                'subject' => 'Software installation request',
-                'description' => 'I need to install Adobe Photoshop for my design work. Can you please help me with the installation?',
-                'category' => 'Software',
+                'subject' => 'Performance review process',
+                'description' => 'I have questions about the annual performance review process and timeline.',
+                'category' => 'HR Process',
                 'priority' => 'Low',
-                'recipant' => 'IT Directorate',
+                'recipant' => 'Human Resource Directorate',
                 'requester_type' => 'Staff',
-                'brunch' => 'Marketing Branch',
+                'brunch' => 'HR Branch',
             ],
             [
-                'subject' => 'Employee benefits question',
-                'description' => 'I have questions about the health insurance benefits provided by the company. Where can I get more information?',
-                'category' => 'Benefits',
+                'subject' => 'Payroll deduction inquiry',
+                'description' => 'There is an unexpected deduction in my payroll. Can someone explain this?',
+                'category' => 'Payroll',
+                'priority' => 'High',
+                'recipant' => 'Finance Directorate',
+                'requester_type' => 'Staff',
+                'brunch' => 'Finance Branch',
+            ],
+            [
+                'subject' => 'Website downtime',
+                'description' => 'The company website is down. Customers cannot access our services.',
+                'category' => 'Infrastructure',
+                'priority' => 'Critical',
+                'recipant' => 'IT Directorate',
+                'requester_type' => 'Staff',
+                'brunch' => 'IT Branch',
+            ],
+            [
+                'subject' => 'Data backup verification',
+                'description' => 'I need to verify that our department data is being backed up properly.',
+                'category' => 'Backup',
+                'priority' => 'Medium',
+                'recipant' => 'IT Directorate',
+                'requester_type' => 'Staff',
+                'brunch' => 'IT Branch',
+            ],
+            [
+                'subject' => 'New employee onboarding',
+                'description' => 'We have a new employee starting next week. What is the onboarding process?',
+                'category' => 'Onboarding',
                 'priority' => 'Medium',
                 'recipant' => 'Human Resource Directorate',
                 'requester_type' => 'Staff',
                 'brunch' => 'HR Branch',
             ],
             [
-                'subject' => 'Printer not working',
-                'description' => 'The shared printer on our floor is not working. It shows an error message and does not print.',
-                'category' => 'Hardware',
-                'priority' => 'Medium',
-                'recipant' => 'IT Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'IT Branch',
-            ],
-            [
-                'subject' => 'Travel expense reimbursement',
-                'description' => 'I need to submit my travel expenses for the business trip last week. What is the process for reimbursement?',
-                'category' => 'Reimbursement',
-                'priority' => 'Medium',
+                'subject' => 'Budget approval request',
+                'description' => 'I need to get approval for the Q3 marketing budget.',
+                'category' => 'Budget',
+                'priority' => 'High',
                 'recipant' => 'Finance Directorate',
                 'requester_type' => 'Staff',
                 'brunch' => 'Finance Branch',
             ],
             [
-                'subject' => 'Email access issue',
-                'description' => 'I cannot access my email from my phone. It keeps asking for password even though I am entering the correct one.',
-                'category' => 'Email',
-                'priority' => 'High',
-                'recipant' => 'IT Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'IT Branch',
-            ],
-            [
-                'subject' => 'Share transfer process',
-                'description' => 'I need to understand the process for transferring shares to another family member. What documents are required?',
-                'category' => 'Shares',
-                'priority' => 'Medium',
-                'recipant' => 'Share Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'Main Office',
-            ],
-            [
-                'subject' => 'Operational workflow issue',
-                'description' => 'Our team is experiencing delays in the operational workflow. Can someone help optimize our processes?',
-                'category' => 'Operations',
-                'priority' => 'High',
-                'recipant' => 'Operation Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'Main Office',
-            ],
-            [
-                'subject' => 'Strategic planning consultation',
-                'description' => 'We need guidance on strategic planning for the next quarter. Who should we contact?',
-                'category' => 'Strategy',
-                'priority' => 'Low',
-                'recipant' => 'Plan and Strategy Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'Main Office',
-            ],
-            [
-                'subject' => 'Marketing campaign approval',
-                'description' => 'I need to get approval for a new marketing campaign. What is the process?',
-                'category' => 'Marketing',
+                'subject' => 'Social media strategy',
+                'description' => 'I need help developing a social media strategy for our new product launch.',
+                'category' => 'Social Media',
                 'priority' => 'Medium',
                 'recipant' => 'Marketing and Communication Directorate',
                 'requester_type' => 'Staff',
                 'brunch' => 'Marketing Branch',
             ],
-            [
-                'subject' => 'Legal contract review',
-                'description' => 'I need a legal contract reviewed before signing with a new vendor.',
-                'category' => 'Legal',
-                'priority' => 'High',
-                'recipant' => 'Law Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'Main Office',
-            ],
-            [
-                'subject' => 'Compliance audit preparation',
-                'description' => 'We are preparing for a compliance audit. What documents do we need to gather?',
-                'category' => 'Compliance',
-                'priority' => 'Medium',
-                'recipant' => 'Compliance and Audit Directorate',
-                'requester_type' => 'Staff',
-                'brunch' => 'Main Office',
-            ],
         ];
 
-        // Create tickets and route them
-        foreach ($sampleTickets as $index => $ticketData) {
+        // Create additional tickets and route them
+        foreach ($additionalTickets as $index => $ticketData) {
             // Get a random regular user as requester
             $requester = $users->where('is_admin', false)->where('is_resolver', false)->random();
             
@@ -244,7 +190,7 @@ class CreateSampleTicketsSeeder extends Seeder
                 'category' => $ticketData['category'],
                 'priority' => $ticketData['priority'],
                 'status' => 'open',
-                'ticket_number' => 'TKT-' . strtoupper(Str::random(8)) . '-' . ($index + 1),
+                'ticket_number' => 'TKT-' . strtoupper(Str::random(8)) . '-' . ($index + 200), // Different numbering
                 'assigned_department_id' => $targetDepartment->id,
             ]);
 
@@ -294,14 +240,12 @@ class CreateSampleTicketsSeeder extends Seeder
                     break;
             }
 
-            // Set realistic status based on assignment
-            $ticketStatus = 'open';
-            if ($assignmentType !== 'unassigned' && rand(1, 3) === 1) { // 33% chance of being in progress
-                $ticketStatus = 'in_progress';
-            } elseif ($assignmentType !== 'unassigned' && rand(1, 5) === 1) { // 20% chance of being resolved
+            // Higher chance of resolved/in-progress tickets for additional data
+            $ticketStatus = 'assigned';
+            if ($assignmentType !== 'unassigned' && rand(1, 3) === 1) { // 33% chance of being resolved
                 $ticketStatus = 'resolved';
-            } elseif ($assignmentType !== 'unassigned') {
-                $ticketStatus = 'assigned';
+            } elseif ($assignmentType !== 'unassigned' && rand(1, 2) === 1) { // 50% chance of being in progress
+                $ticketStatus = 'in_progress';
             }
 
             DB::table($tableName)->insert([
@@ -311,11 +255,11 @@ class CreateSampleTicketsSeeder extends Seeder
                 'assigned_resolver_id' => $assignedResolver,
                 'assignment_group_id' => $groupId,
                 'assigned_by' => $assignedBy,
-                'due_date' => now()->addDays(rand(3, 7)),
-                'assigned_at' => $assignmentType !== 'unassigned' ? now()->subHours(rand(1, 24)) : null,
-                'position' => $index + 1,
-                'created_at' => now()->subDays(rand(0, 30)),
-                'updated_at' => now()->subHours(rand(1, 24)),
+                'due_date' => now()->addDays(rand(1, 14)), // Longer due dates for additional tickets
+                'assigned_at' => $assignmentType !== 'unassigned' ? now()->subHours(rand(1, 48)) : null,
+                'position' => $index + 100,
+                'created_at' => now()->subDays(rand(0, 60)), // Older tickets
+                'updated_at' => now()->subHours(rand(1, 48)),
             ]);
 
             // Update main ticket if assigned
@@ -330,6 +274,6 @@ class CreateSampleTicketsSeeder extends Seeder
             }
         }
 
-        $this->command->info('Sample tickets created and routed successfully!');
+        $this->command->info('Additional sample tickets created and routed successfully!');
     }
 }

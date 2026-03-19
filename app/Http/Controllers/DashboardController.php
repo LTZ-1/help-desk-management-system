@@ -54,7 +54,8 @@ class DashboardController extends Controller
             'user_branch' => $user->branch,
             'departments' => $departments,
             'branches' => ['Main Branch', 'North Branch', 'South Branch', 'East Branch', 'West Branch'],
-            'dashboardData' => $dashboardData
+            'dashboardData' => $dashboardData,
+            'resolverData' => $dashboardData['resolverData'] ?? null
         ]);
     }
 
@@ -105,13 +106,30 @@ class DashboardController extends Controller
             $recentTickets = $this->getSystemWideRecentTickets();
         } elseif ($user->is_resolver) {
             // Resolver gets their personal statistics
-            $statistics = $this->ticketService->getResolverStatistics($user->id);
-            $chartData = []; // Can be implemented later
-            $recentTickets = $this->ticketService->getResolverTickets($user->id, [
+            $resolverStatistics = $this->ticketService->getResolverStatistics($user->id);
+            $resolverChartData = []; // Can be implemented later
+            $resolverTickets = $this->ticketService->getResolverTickets($user->id, [
                 'per_page' => 5,
                 'sort_by' => 'created_at',
                 'sort_direction' => 'desc'
-            ])->items();
+            ]);
+            
+            // Convert to array if it's a paginator object
+            $resolverTickets = $resolverTickets instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                ? $resolverTickets->items() 
+                : $resolverTickets;
+                
+            // Pass resolver data separately
+            return [
+                'statistics' => $statistics,
+                'chartData' => $chartData,
+                'recentTickets' => $recentTickets,
+                'resolverData' => [
+                    'statistics' => $resolverStatistics,
+                    'chartData' => $resolverChartData,
+                    'tickets' => $resolverTickets
+                ]
+            ];
         }
 
         return [

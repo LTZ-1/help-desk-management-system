@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/sidebar"
 import DepartmentSelectDialog from "@/components/DepartmentSelectDialog"
 import DepartmentAdminDashboard from "@/components/department-admin-dashboard"
+import ResolverDashboard from "@/pages/resolver-dashboard"
 import { useState, useEffect } from "react"
 import { router, usePage } from "@inertiajs/react"
 
@@ -74,13 +75,25 @@ export default function Page() {
     chartData: [],
     recentTickets: []
   })
-  const [loading, setLoading] = useState(!props.dashboardData)
+  const [resolverData, setResolverData] = useState(props.resolverData || {
+    statistics: {},
+    chartData: [],
+    tickets: []
+  })
+  const [loading, setLoading] = useState(!props.dashboardData && !props.resolverData)
   const [error, setError] = useState<string | null>(null)
 
   // Fetch dashboard data on component mount if not provided via server
   useEffect(() => {
     if (!props.dashboardData && (props.user_has_department || props.user_is_admin)) {
       fetchDashboardData()
+    }
+  }, [])
+
+  // Fetch resolver data on component mount if not provided via server
+  useEffect(() => {
+    if (!props.resolverData && props.user_is_resolver) {
+      fetchResolverData()
     }
   }, [])
 
@@ -91,7 +104,7 @@ export default function Page() {
       
       // Use Inertia's router to reload with dashboard data
       router.reload({
-        only: ['dashboardData','tilters'],
+        only: ['dashboardData'],
         onSuccess: (page: any) => {
           setDashboardData(page.props.dashboardData)
         },
@@ -103,6 +116,30 @@ export default function Page() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       setError('Failed to load dashboard data. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchResolverData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Use Inertia's router to reload with resolver data
+      router.reload({
+        only: ['resolverData'],
+        onSuccess: (page: any) => {
+          setResolverData(page.props.resolverData)
+        },
+        onError: (errors: any) => {
+          setError('Failed to load resolver data')
+        }
+      })
+      
+    } catch (error) {
+      console.error('Error fetching resolver data:', error)
+      setError('Failed to load resolver data. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -248,6 +285,8 @@ export default function Page() {
                   {/* Department Admin Dashboard */}
                   {props.user_is_admin && props.user_has_department ? (
                     <DepartmentAdminDashboard />
+                  ) : props.user_is_resolver ? (
+                    <ResolverDashboard />
                   ) : (
                     <>
                       <SectionCards statistics={dashboardData.statistics} loading={loading} error={error || undefined} />
