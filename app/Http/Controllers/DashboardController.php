@@ -1,4 +1,16 @@
 <?php
+/**
+ * Main Dashboard Controller
+ * 
+ * Handles the main dashboard view for different user types:
+ * - System Administrators: System-wide overview
+ * - Department Administrators: Department-specific data
+ * - Resolvers: Personal ticket assignments and statistics
+ * - Regular Users: Basic ticket submission interface
+ * 
+ * @author Help Desk Management System
+ * @version 1.0
+ */
 
 namespace App\Http\Controllers;
 
