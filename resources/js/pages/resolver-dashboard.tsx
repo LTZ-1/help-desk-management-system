@@ -1,3 +1,19 @@
+/**
+ * Resolver Dashboard Component
+ * 
+ * Provides a comprehensive dashboard for resolver users including:
+ * - Personal ticket statistics and metrics
+ * - Interactive charts showing ticket trends
+ * - "My Tickets" section for assigned tickets management
+ * - Data refresh functionality with error handling
+ * 
+ * Uses Inertia.js for seamless data fetching and state management
+ * 
+ * @component
+ * @author Help Desk Management System
+ * @version 1.0
+ */
+
 // resolver-dashboard.tsx
 "use client"
 import * as React from "react"
