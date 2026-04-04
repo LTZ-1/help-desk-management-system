@@ -281,52 +281,67 @@ export function MyTicketsTab() {
     },
   ]
 
-  // Simple fetch function
+  // Simple fetch function - uses direct database fetching as per MVC structure
   const fetchMyTickets = async () => {
+    console.log('=== STARTING FETCH MY TICKETS ===')
     setLoading(true)
     setError(null)
     
     try {
-      console.log('Fetching my tickets...')
+      console.log('Fetching admin my tickets...')
       
+      // Use the correct endpoint for admin's self-assigned tickets
       const response = await fetch('/dept-admin/my-tickets', {
+        method: 'GET',
         headers: {
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
         }
       })
       
       console.log('Response status:', response.status)
+      console.log('Response headers:', response.headers)
       
       if (!response.ok) {
+        console.error('Response not OK:', response.status, response.statusText)
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
       
       const result = await response.json()
-      console.log('API Response:', result)
+      console.log('=== FULL API RESPONSE ===')
+      console.log('Response type:', typeof result)
+      console.log('Is array:', Array.isArray(result))
+      console.log('Has tickets property:', 'tickets' in result)
+      console.log('Full response data:', result)
       
       if (result.error) {
+        console.error('API returned error:', result.error)
         throw new Error(result.error)
       }
       
-      // Simple data handling
+      // Handle backend response structure: { tickets: formattedTickets, filters: ... }
       const tickets = result.tickets || []
-      console.log('Tickets received:', tickets.length)
+      console.log('=== TICKETS EXTRACTION ===')
+      console.log('Tickets extracted:', tickets)
+      console.log('Tickets length:', tickets.length)
+      console.log('First ticket sample:', tickets[0])
       
-      if (Array.isArray(tickets)) {
-        setData(tickets)
-      } else {
-        console.error('Expected array, got:', typeof tickets)
-        setData([])
-      }
+      // The backend already formats the tickets correctly, so use them directly
+      setData(tickets)
+      console.log('=== DATA SET IN STATE ===')
+      console.log('Data set in state. Current data length:', tickets.length)
+      console.log('Current data state:', tickets)
       
     } catch (err) {
+      console.error('=== FETCH ERROR ===')
       console.error('Error:', err)
       const message = err instanceof Error ? err.message : 'Unknown error'
       setError(message)
       toast.error(message)
       setData([]) // Always set empty array to prevent blank page
     } finally {
+      console.log('=== FETCH COMPLETED ===')
       setLoading(false)
     }
   }
@@ -356,8 +371,15 @@ export function MyTicketsTab() {
     },
   })
 
+  // Debug: Log table data
+  console.log('=== TABLE RENDER DEBUG ===')
+  console.log('Table data length:', data.length)
+  console.log('Loading state:', loading)
+  console.log('Error state:', error)
+
   // Simple render logic
   if (loading) {
+    console.log('Rendering loading state...')
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -366,21 +388,18 @@ export function MyTicketsTab() {
   }
 
   if (error) {
+    console.log('Rendering error state:', error)
     return (
-      <div className="px-4 lg:px-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Tickets</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-        <div className="mt-4">
-          <Button onClick={fetchMyTickets} variant="outline">
-            Try Again
-          </Button>
-        </div>
-      </div>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+        <Button onClick={fetchMyTickets} className="mt-2">Retry</Button>
+      </Alert>
     )
   }
+
+  console.log('About to render table with data length:', data.length)
 
   return (
     <div className="w-full space-y-4">

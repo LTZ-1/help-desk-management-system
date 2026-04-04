@@ -468,4 +468,99 @@ class DashboardController extends Controller
         
         return $chartData;
     }
+
+    /**
+     * Get admin's self-assigned tickets (My Tickets)
+     */
+    public function getMyTickets(Request $request)
+    {
+        $user = Auth::user();
+        
+        if (!$user->is_admin) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Get tickets assigned to the admin (where resolver_id is the admin's ID)
+        $query = Ticket::where('assigned_resolver_id', $user->id);
+
+        // Apply filters
+        $filters = $request->all();
+        $this->applyTicketFilters($query, $filters);
+
+        // Get results
+        $tickets = $query->orderBy('created_at', 'desc')->get();
+
+        // Format tickets for frontend
+        $formattedTickets = $tickets->map(function ($ticket) use ($user) {
+            return [
+                'id' => $ticket->id,
+                'ticket_number' => $ticket->ticket_number,
+                'subject' => $ticket->subject,
+                'status' => $ticket->status,
+                'priority' => $ticket->priority,
+                'category' => $ticket->category,
+                'created_at' => $ticket->created_at->toISOString(),
+                'due_date' => $ticket->due_date ? $ticket->due_date->toISOString() : null,
+                'assigned_to' => $ticket->assigned_resolver_id,
+                'assigned_resolver_name' => $user->name,
+                'assignment_type' => $ticket->assignment_type,
+                'resolver_id' => $ticket->assigned_resolver_id,
+                'assigned_resolver_id' => $ticket->assigned_resolver_id,
+                'group_id' => $ticket->group_id,
+                'requester_id' => $ticket->requester_id ?? null,
+                'requester_type' => $ticket->requester_type ?? 'user',
+                'requester_name' => $ticket->requester_name ?? 'Unknown',
+                'requester_email' => $ticket->requester_email ?? 'unknown@example.com',
+                'assigned_at' => $ticket->assigned_at ? $ticket->assigned_at->toISOString() : null,
+                'resolved_at' => $ticket->resolved_at ? $ticket->resolved_at->toISOString() : null,
+            ];
+        });
+
+        return response()->json($formattedTickets);
+    }
+
+    /**
+     * Apply filters to ticket query
+     */
+    private function applyTicketFilters($query, $filters)
+    {
+        // Status filter
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        // Priority filter
+        if (!empty($filters['priority'])) {
+            $query->where('priority', $filters['priority']);
+        }
+
+        // Category filter
+        if (!empty($filters['category'])) {
+            $query->where('category', $filters['category']);
+        }
+
+        // Search filter
+        if (!empty($filters['search'])) {
+            $searchTerm = $filters['search'];
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('ticket_number', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('subject', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('description', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        // Department filter
+        if (!empty($filters['department_id'])) {
+            $query->where('assigned_department_id', $filters['department_id']);
+        }
+
+        // Sorting
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDirection = $filters['sort_direction'] ?? 'desc';
+        
+        $allowedSortColumns = ['created_at', 'due_date', 'priority', 'status', 'ticket_number', 'subject'];
+        if (in_array($sortBy, $allowedSortColumns)) {
+            $query->orderBy($sortBy, $sortDirection);
+        }
+    }
 }
