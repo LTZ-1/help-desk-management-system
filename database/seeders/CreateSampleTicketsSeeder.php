@@ -49,7 +49,7 @@ class CreateSampleTicketsSeeder extends Seeder
             }
         }
         
-        return 'individual'; // fallback
+        return 'individual'; 
     }
 
     /**
