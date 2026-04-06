@@ -103,45 +103,77 @@ export function ResolverMyTicketsTab() {
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [tickets, setTickets] = useState<ResolverTicket[]>(props.resolverData?.tickets || [])
+  const [tickets, setTickets] = useState<ResolverTicket[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState({})
 
-  // Fetch resolver tickets using Inertia
-  const fetchTickets = async () => {
+  // Direct fetch function - uses direct database fetching like admin's my tickets
+  const fetchMyTickets = async () => {
+    console.log('=== STARTING FETCH RESOLVER MY TICKETS ===')
+    setLoading(true)
+    setError(null)
+    
     try {
-      setLoading(true)
-      setError(null)
+      console.log('Fetching resolver my tickets...')
       
-      // Use Inertia's router to reload with resolver tickets data
-      router.reload({
-        only: ['resolverData'],
-        onSuccess: (page: any) => {
-          const resolverData = page.props.resolverData
-          if (resolverData && resolverData.tickets) {
-            setTickets(resolverData.tickets)
-          }
-        },
-        onError: (errors: any) => {
-          setError('Failed to load tickets')
+      // Use the correct endpoint for resolver's assigned tickets
+      const response = await fetch('/resolver/my-tickets', {
+        method: 'GET',
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
         }
       })
       
-    } catch (error) {
-      console.error('Error fetching resolver tickets:', error)
-      setError('Failed to load tickets')
-      setTickets([])
+      console.log('Response status:', response.status)
+      
+      if (!response.ok) {
+        console.error('Response not OK:', response.status, response.statusText)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      console.log('=== FULL API RESPONSE ===')
+      console.log('Response type:', typeof result)
+      console.log('Is array:', Array.isArray(result))
+      console.log('Has tickets property:', 'tickets' in result)
+      console.log('Full response data:', result)
+      
+      if (result.error) {
+        console.error('API returned error:', result.error)
+        throw new Error(result.error)
+      }
+      
+      // Handle backend response structure: { tickets: formattedTickets, ... }
+      const tickets = result.tickets || []
+      console.log('=== TICKETS EXTRACTION ===')
+      console.log('Tickets extracted:', tickets)
+      console.log('Tickets length:', tickets.length)
+      console.log('First ticket sample:', tickets[0])
+      
+      // The backend already formats the tickets correctly, so use them directly
+      setTickets(tickets)
+      console.log('=== DATA SET IN STATE ===')
+      console.log('Data set in state. Current data length:', tickets.length)
+      
+    } catch (err) {
+      console.error('=== FETCH ERROR ===')
+      console.error('Error:', err)
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      setError(message)
+      toast.error(message)
+      setTickets([]) // Always set empty array to prevent blank page
     } finally {
+      console.log('=== FETCH COMPLETED ===')
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    if (!props.resolverData?.tickets) {
-      fetchTickets()
-    }
+    fetchMyTickets()
   }, [])
 
   const columns: ColumnDef<ResolverTicket>[] = [

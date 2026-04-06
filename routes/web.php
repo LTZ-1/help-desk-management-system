@@ -17,6 +17,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'resolver'])->group(function () {
     Route::get('/resolver/dashboard', [ResolverDashboardController::class, 'index'])->name('resolver.dashboard');
     Route::get('/resolver/tickets', [ResolverDashboardController::class, 'getResolverTickets'])->name('resolver.tickets');
+    Route::get('/resolver/my-tickets', [ResolverDashboardController::class, 'getMyTickets'])->name('resolver.my-tickets');
     Route::get('/resolver/chart-data', [ResolverDashboardController::class, 'getResolverChartData'])->name('resolver.chart-data');
     Route::get('/resolver/statistics', [ResolverDashboardController::class, 'getResolverStatistics'])->name('resolver.statistics');
     Route::get('/resolver/tickets/{ticketId}/group-members', [ResolverDashboardController::class, 'getGroupMembers'])->name('resolver.group-members');

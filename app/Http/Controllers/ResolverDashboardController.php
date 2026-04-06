@@ -57,6 +57,113 @@ class ResolverDashboardController extends Controller
     }
 
     /**
+     * Get "My Tickets" for resolver (assigned to current resolver)
+     */
+    public function getMyTickets(Request $request)
+    {
+        $resolver = $request->user();
+        
+        if (!$resolver->is_resolver) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Debug logging
+        \Log::info('=== RESOLVER MY TICKETS DEBUG ===');
+        \Log::info('Resolver ID: ' . $resolver->id);
+        \Log::info('Resolver Name: ' . $resolver->name);
+        \Log::info('Resolver Department ID: ' . $resolver->department_id);
+        
+        if (!$resolver->department_id) {
+            \Log::error('No department assigned for resolver: ' . $resolver->id);
+            return response()->json(['error' => 'No department assigned'], 403);
+        }
+
+        try {
+            // Get tickets from main tickets table where assigned_resolver_id is the resolver's ID
+            $query = Ticket::where('assigned_resolver_id', $resolver->id)
+                ->where('assigned_department_id', $resolver->department_id)
+                ->leftJoin('users as requester', 'requester.id', '=', 'tickets.requester_id')
+                ->select(
+                    'tickets.*',
+                    'requester.name as requester_name',
+                    'requester.email as requester_email',
+                    DB::raw('CASE 
+                        WHEN requester.is_admin = 1 THEN "admin"
+                        WHEN requester.is_resolver = 1 THEN "resolver"
+                        ELSE "user"
+                    END as requester_type')
+                );
+
+            // Apply filters if provided
+            if ($request->status && $request->status !== '') {
+                $query->where('tickets.status', $request->status);
+            }
+            if ($request->priority && $request->priority !== '') {
+                $query->where('tickets.priority', $request->priority);
+            }
+            if ($request->category && $request->category !== '') {
+                $query->where('tickets.category', $request->category);
+            }
+            if ($request->search && $request->search !== '') {
+                $query->where(function($q) use ($request) {
+                    $q->where('tickets.ticket_number', 'like', '%' . $request->search . '%')
+                      ->orWhere('tickets.subject', 'like', '%' . $request->search . '%');
+                });
+            }
+
+            // Order by latest first
+            $query->orderBy('tickets.created_at', 'desc');
+
+            $tickets = $query->get();
+            
+            \Log::info('Found ' . $tickets->count() . ' tickets for resolver');
+
+            // Transform the data to match frontend expectations
+            $formattedTickets = $tickets->map(function ($ticket) {
+                \Log::info('Processing ticket: ' . $ticket->ticket_number);
+                return [
+                    'id' => $ticket->id,
+                    'ticket_number' => $ticket->ticket_number,
+                    'subject' => $ticket->subject,
+                    'description' => $ticket->description,
+                    'status' => $ticket->status,
+                    'priority' => $ticket->priority,
+                    'category' => $ticket->category,
+                    'created_at' => $ticket->created_at,
+                    'due_date' => $ticket->due_date,
+                    'assigned_to' => $ticket->assigned_resolver_id,
+                    'assignment_type' => $ticket->assignment_type,
+                    'resolver_id' => $ticket->assigned_resolver_id,
+                    'assigned_resolver_id' => $ticket->assigned_resolver_id,
+                    'group_id' => $ticket->group_id,
+                    'assigned_at' => $ticket->assigned_at,
+                    'assigned_by' => $ticket->assigned_by,
+                    'resolved_at' => $ticket->resolved_at,
+                    // Additional fields for resolver's My Tickets tab
+                    'requester_id' => $ticket->requester_id,
+                    'requester_name' => $ticket->requester_name,
+                    'requester_email' => $ticket->requester_email,
+                    'requester_type' => $ticket->requester_type ?? 'user',
+                ];
+            });
+
+            \Log::info('Formatted tickets count: ' . $formattedTickets->count());
+            \Log::info('Returning response with tickets');
+
+            return response()->json([
+                'tickets' => $formattedTickets,
+                'filters' => $request->all()
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error fetching resolver my tickets: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to fetch tickets: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get resolver statistics for AJAX requests
      */
     public function getResolverStatistics(Request $request)
