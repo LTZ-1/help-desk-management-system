@@ -17,7 +17,7 @@ import {
   VisibilityState,
   useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Search, X, Filter, Calendar, User } from "lucide-react"
+import { ArrowUpDown, ChevronDown, MoreHorizontal, Search, X, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -43,6 +43,10 @@ import {
 } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { toast } from "sonner"
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { User as UserIcon, Mail, Calendar as CalendarIcon, Clock, CheckCircle } from "lucide-react"
 
 // Resolver ticket interface
 interface ResolverTicket {
@@ -53,13 +57,21 @@ interface ResolverTicket {
   category: string
   priority: string
   status: string
-  assignment_type: string
-  assigned_resolver_id: number
-  assignment_group_id?: number
-  due_date?: string
   created_at: string
+  due_date: string | null
+  assigned_to: number | null
+  assignment_type: string
+  resolver_id: number | null
+  assigned_resolver_id: number | null
+  group_id: number | null
+  assigned_at: string | null
+  assigned_by: number | null
+  resolved_at: string | null
+  // Additional fields for resolver's My Tickets tab
+  requester_id: number
   requester_name: string
   requester_email: string
+  requester_type: string
 }
 
 interface User {
@@ -97,7 +109,13 @@ const statusColors: Record<string, string> = {
   closed: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
 }
 
-export function ResolverMyTicketsTab() {
+interface ResolverMyTicketsTabProps {
+  onTicketsUpdate?: (tickets: ResolverTicket[]) => void
+  onLoadingState?: (loading: boolean) => void
+  onErrorState?: (error: string) => void
+}
+
+export function ResolverMyTicketsTab({ onTicketsUpdate, onLoadingState, onErrorState }: ResolverMyTicketsTabProps) {
   const { props } = usePage<PageProps>()
   const user = props.auth.user
   
@@ -108,6 +126,18 @@ export function ResolverMyTicketsTab() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState({})
+  
+  // Filters state - same as admin's My Tickets tab
+  const [filters, setFilters] = useState({
+    status: '',
+    priority: '',
+    category: '',
+    search: ''
+  })
+
+  // Ticket details drawer state
+  const [selectedTicket, setSelectedTicket] = useState<ResolverTicket | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   // Direct fetch function - uses direct database fetching like admin's my tickets
   const fetchMyTickets = async () => {
@@ -115,11 +145,21 @@ export function ResolverMyTicketsTab() {
     setLoading(true)
     setError(null)
     
+    // Notify parent of loading state
+    if (onLoadingState) onLoadingState(true)
+    if (onErrorState) onErrorState(null as any)
+    
     try {
       console.log('Fetching resolver my tickets...')
       
       // Use the correct endpoint for resolver's assigned tickets
-      const response = await fetch('/resolver/my-tickets', {
+      const queryParams = new URLSearchParams()
+      if (filters.status) queryParams.append('status', filters.status)
+      if (filters.priority) queryParams.append('priority', filters.priority)
+      if (filters.category) queryParams.append('category', filters.category)
+      if (filters.search) queryParams.append('search', filters.search)
+      
+      const response = await fetch(`/resolver/my-tickets?${queryParams.toString()}`, {
         method: 'GET',
         headers: {
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -159,6 +199,11 @@ export function ResolverMyTicketsTab() {
       console.log('=== DATA SET IN STATE ===')
       console.log('Data set in state. Current data length:', tickets.length)
       
+      // Pass tickets data to parent dashboard
+      if (onTicketsUpdate) {
+        onTicketsUpdate(tickets)
+      }
+      
     } catch (err) {
       console.error('=== FETCH ERROR ===')
       console.error('Error:', err)
@@ -166,15 +211,37 @@ export function ResolverMyTicketsTab() {
       setError(message)
       toast.error(message)
       setTickets([]) // Always set empty array to prevent blank page
+      
+      // Pass error to parent dashboard
+      if (onErrorState) onErrorState(message)
+      
+      // Pass empty tickets to parent dashboard on error
+      if (onTicketsUpdate) {
+        onTicketsUpdate([])
+      }
     } finally {
       console.log('=== FETCH COMPLETED ===')
       setLoading(false)
+      
+      // Notify parent of loading completion
+      if (onLoadingState) onLoadingState(false)
     }
   }
 
   useEffect(() => {
     fetchMyTickets()
   }, [])
+
+  // Refetch when filters change - same as admin's My Tickets tab
+  useEffect(() => {
+    fetchMyTickets()
+  }, [filters])
+
+  // Handle ticket row click to show details
+  const handleTicketClick = (ticket: ResolverTicket) => {
+    setSelectedTicket(ticket)
+    setDetailsOpen(true)
+  }
 
   const columns: ColumnDef<ResolverTicket>[] = [
     {
@@ -237,6 +304,11 @@ export function ResolverMyTicketsTab() {
       },
     },
     {
+      accessorKey: "assigned_to",
+      header: "Assigned To",
+      cell: ({ row }) => <div>{row.getValue("assigned_to") || "Unassigned"}</div>,
+    },
+    {
       accessorKey: "due_date",
       header: "Due Date",
       cell: ({ row }) => {
@@ -251,6 +323,59 @@ export function ResolverMyTicketsTab() {
             {date.toLocaleDateString()}
           </div>
         )
+      },
+    },
+    // Additional columns for My Tickets tab - same as admin
+    {
+      accessorKey: "requester_id",
+      header: "Requester ID",
+      cell: ({ row }) => <div>{row.getValue("requester_id")}</div>,
+    },
+    {
+      accessorKey: "requester_type",
+      header: "Requester Type",
+      cell: ({ row }) => <div>{row.getValue("requester_type")}</div>,
+    },
+    {
+      accessorKey: "requester_name",
+      header: "Requester Name",
+      cell: ({ row }) => <div>{row.getValue("requester_name")}</div>,
+    },
+    {
+      accessorKey: "requester_email",
+      header: "Requester Email",
+      cell: ({ row }) => <div>{row.getValue("requester_email")}</div>,
+    },
+    {
+      accessorKey: "assigned_resolver_id",
+      header: "Assigned Resolver ID",
+      cell: ({ row }) => {
+        const assignmentType = row.getValue("assignment_type")
+        if (assignmentType === 'group') {
+          return <div>Group: {row.getValue("group_id")}</div>
+        }
+        return <div>{row.getValue("assigned_resolver_id")}</div>
+      },
+    },
+    {
+      accessorKey: "group_id",
+      header: "Group ID",
+      cell: ({ row }) => <div>{row.getValue("group_id") || "N/A"}</div>,
+    },
+    {
+      accessorKey: "assigned_at",
+      header: "Assigned At",
+      cell: ({ row }) => {
+        const date = row.getValue("assigned_at") as string | null
+        return date ? new Date(date).toLocaleDateString() : "Not assigned"
+      },
+    },
+    {
+      accessorKey: "resolved_at",
+      header: "Resolved At",
+      cell: ({ row }) => {
+        const date = row.getValue("resolved_at") as string | null
+        return date ? new Date(date).toLocaleDateString() : "Not resolved"
       },
     },
     {
@@ -313,7 +438,7 @@ export function ResolverMyTicketsTab() {
   const hasActiveFilters = columnFilters.length > 0
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-4">
       {/* Error Alert */}
       {error && (
         <Alert variant="destructive">
@@ -324,26 +449,77 @@ export function ResolverMyTicketsTab() {
       )}
 
       {/* Filters */}
-      <div className="flex items-center justify-between">
-        <div className="flex flex-1 items-center space-x-2">
-          <Input
-            placeholder="Filter tickets..."
-            value={(table.getColumn("ticket_number")?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
-              table.getColumn("ticket_number")?.setFilterValue(event.target.value)
-            }
-            className="max-w-sm"
-          />
-          {hasActiveFilters && (
-            <Button variant="outline" onClick={clearFilters} className="flex items-center gap-2">
-              <X className="h-4 w-4" />
-              Clear Filters
-            </Button>
-          )}
+      <div className="flex flex-col lg:flex-row gap-4 p-4 bg-muted/50 rounded-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <label className="text-sm font-medium flex items-center">Status</label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="px-3 py-2 border rounded-md text-sm"
+            >
+              <option value="">All Status</option>
+              <option value="unassigned">Unassigned</option>
+              <option value="assigned">Assigned</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <label className="text-sm font-medium flex items-center">Priority</label>
+            <select
+              value={filters.priority}
+              onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
+              className="px-3 py-2 border rounded-md text-sm"
+            >
+              <option value="">All Priority</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <label className="text-sm font-medium flex items-center">Category</label>
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+              className="px-3 py-2 border rounded-md text-sm"
+            >
+              <option value="">All Categories</option>
+              <option value="technical">Technical</option>
+              <option value="billing">Billing</option>
+              <option value="support">Support</option>
+              <option value="general">General</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <label className="text-sm font-medium flex items-center">Search</label>
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tickets..."
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                className="pl-8"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setFilters({ status: '', priority: '', category: '', search: '' })}>
+            <X className="h-4 w-4 mr-2" />
+            Clear
+          </Button>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Data Table */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -368,6 +544,8 @@ export function ResolverMyTicketsTab() {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleTicketClick(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -418,6 +596,102 @@ export function ResolverMyTicketsTab() {
           </Button>
         </div>
       </div>
+
+      {/* Ticket Details Drawer */}
+      <Drawer open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Ticket Details - {selectedTicket?.ticket_number}</DrawerTitle>
+          </DrawerHeader>
+          <div className="p-4 space-y-4">
+            {selectedTicket && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Subject</h4>
+                    <p className="font-medium">{selectedTicket.subject}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Status</h4>
+                    <Badge className={statusColors[selectedTicket.status] || 'bg-gray-100 text-gray-800'}>
+                      {selectedTicket.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Priority</h4>
+                    <Badge className={priorityColors[selectedTicket.priority] || 'bg-gray-100 text-gray-800'}>
+                      {selectedTicket.priority}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Category</h4>
+                    <p className="capitalize">{selectedTicket.category}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground mb-2">Description</h4>
+                  <p className="text-sm">{selectedTicket.description}</p>
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+                      <UserIcon className="h-4 w-4" />
+                      Requester
+                    </h4>
+                    <p className="font-medium">{selectedTicket.requester_name}</p>
+                    <p className="text-sm text-muted-foreground">{selectedTicket.requester_email}</p>
+                    <Badge variant="outline" className="mt-1">
+                      {selectedTicket.requester_type}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      Dates
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      <p>Created: {new Date(selectedTicket.created_at).toLocaleDateString()}</p>
+                      {selectedTicket.due_date && (
+                        <p>Due: {new Date(selectedTicket.due_date).toLocaleDateString()}</p>
+                      )}
+                      {selectedTicket.assigned_at && (
+                        <p>Assigned: {new Date(selectedTicket.assigned_at).toLocaleDateString()}</p>
+                      )}
+                      {selectedTicket.resolved_at && (
+                        <p>Resolved: {new Date(selectedTicket.resolved_at).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Assignment</h4>
+                    <p className="text-sm">Type: <span className="capitalize">{selectedTicket.assignment_type}</span></p>
+                    <p className="text-sm">Assigned to: {selectedTicket.assigned_resolver_id || 'Unassigned'}</p>
+                    {selectedTicket.group_id && (
+                      <p className="text-sm">Group ID: {selectedTicket.group_id}</p>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Details</h4>
+                    <p className="text-sm">Ticket ID: {selectedTicket.id}</p>
+                    <p className="text-sm">Requester ID: {selectedTicket.requester_id}</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   )
 }

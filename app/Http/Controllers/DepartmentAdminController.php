@@ -82,26 +82,27 @@ class DepartmentAdminController extends Controller
     {
         $user = Auth::user();
         
-        // Debug logging
-        \Log::info('=== MY TICKETS DEBUG ===');
-        \Log::info('User ID: ' . $user->id);
-        \Log::info('User Name: ' . $user->name);
-        \Log::info('User Department ID: ' . $user->department_id);
-        \Log::info('User is_admin: ' . $user->is_admin);
-        \Log::info('User is_resolver: ' . $user->is_resolver);
-        
         if (!$user->department_id) {
-            \Log::error('No department assigned for user: ' . $user->id);
             return response()->json(['error' => 'No department assigned'], 403);
         }
 
         try {
-            // Get tickets from main tickets table where assigned_resolver_id is the admin's ID
-            $query = Ticket::where('assigned_resolver_id', $user->id)
-                ->where('assigned_department_id', $user->department_id)
+            // Get the department table name
+            $department = Department::findOrFail($user->department_id);
+            $tableName = 'dept_' . $department->slug . '_tickets';
+            
+            // Get tickets from department table where assigned to this admin
+            $query = DB::table($tableName)
+                ->join('tickets', 'tickets.id', '=', $tableName . '.ticket_id')
                 ->leftJoin('users as requester', 'requester.id', '=', 'tickets.requester_id')
                 ->select(
                     'tickets.*',
+                    $tableName . '.assignment_type as dept_assignment_type',
+                    $tableName . '.assigned_resolver_id',
+                    $tableName . '.assignment_group_id',
+                    $tableName . '.assigned_at',
+                    $tableName . '.assigned_by',
+                    $tableName . '.due_date as dept_due_date',
                     'requester.name as requester_name',
                     'requester.email as requester_email',
                     DB::raw('CASE 
@@ -109,7 +110,12 @@ class DepartmentAdminController extends Controller
                         WHEN requester.is_resolver = 1 THEN "resolver"
                         ELSE "user"
                     END as requester_type')
-                );
+                )
+                ->where(function($query) use ($user, $tableName) {
+                    // Include tickets where this admin is the assigned resolver
+                    $query->where($tableName . '.assigned_resolver_id', $user->id);
+                })
+                ->where('tickets.assigned_department_id', $user->department_id);
 
             // Apply filters if provided
             if ($request->status && $request->status !== '') {
@@ -132,14 +138,9 @@ class DepartmentAdminController extends Controller
             $query->orderBy('tickets.created_at', 'desc');
 
             $tickets = $query->get();
-            
-            \Log::info('Found ' . $tickets->count() . ' tickets for admin');
-            \Log::info('SQL Query: ' . $query->toSql());
-            \Log::info('Query bindings: ' . json_encode($query->getBindings()));
 
             // Transform the data to match frontend expectations
             $formattedTickets = $tickets->map(function ($ticket) {
-                \Log::info('Processing ticket: ' . $ticket->ticket_number);
                 return [
                     'id' => $ticket->id,
                     'ticket_number' => $ticket->ticket_number,
@@ -149,12 +150,12 @@ class DepartmentAdminController extends Controller
                     'priority' => $ticket->priority,
                     'category' => $ticket->category,
                     'created_at' => $ticket->created_at,
-                    'due_date' => $ticket->due_date, // Use main tickets table due date
+                    'due_date' => $ticket->dept_due_date, // Use department table due date
                     'assigned_to' => $ticket->assigned_resolver_id,
-                    'assignment_type' => $ticket->assignment_type, // Use main tickets table assignment type
+                    'assignment_type' => $ticket->dept_assignment_type, // Use department table assignment type
                     'resolver_id' => $ticket->assigned_resolver_id,
                     'assigned_resolver_id' => $ticket->assigned_resolver_id,
-                    'group_id' => $ticket->group_id,
+                    'group_id' => $ticket->assignment_group_id,
                     'assigned_at' => $ticket->assigned_at,
                     'assigned_by' => $ticket->assigned_by,
                     'resolved_at' => $ticket->resolved_at,
@@ -165,9 +166,6 @@ class DepartmentAdminController extends Controller
                     'requester_type' => $ticket->requester_type ?? 'user', // Use CASE statement result
                 ];
             });
-
-            \Log::info('Formatted tickets count: ' . $formattedTickets->count());
-            \Log::info('Returning response with tickets');
 
             return response()->json([
                 'tickets' => $formattedTickets,

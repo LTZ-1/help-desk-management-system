@@ -61,71 +61,89 @@ export default function ResolverDashboard() {
   
   const user = props.auth.user
   
-  const [loading, setLoading] = useState(!props.resolverData)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
-  // Resolver-specific statistics with required admin properties for SectionCards compatibility
-  const [statistics, setStatistics] = useState(props.resolverData?.statistics || {
-    total_tickets_to_resolve: 0,
-    assigned_tickets: 0,
-    resolved_tickets: 0,
-    overdue_tickets: 0,
-    active_resolvers: 0,
-    assigned_resolver_groups: 0,
-    // Resolver-specific
-    total_tickets_assigned: 0,
-    in_progress_tickets: 0,
-    group_tickets: 0,
-    individual_tickets: 0
-  })
+  // Share tickets data with My Tickets tab
+  const [tickets, setTickets] = useState<any[]>([])
   
-  const [chartData, setChartData] = useState(props.resolverData?.chartData || [])
-  const [tickets, setTickets] = useState(props.resolverData?.tickets || [])
+  // Calculate statistics from tickets data (same as My Tickets tab)
+  const calculateStatistics = (ticketData: any[]) => {
+    const stats = {
+      total_tickets_to_resolve: ticketData.length,
+      assigned_tickets: ticketData.filter((t: any) => t.status === 'assigned').length,
+      resolved_tickets: ticketData.filter((t: any) => t.status === 'resolved').length,
+      overdue_tickets: ticketData.filter((t: any) => {
+        if (!t.due_date) return false
+        return new Date(t.due_date) < new Date() && t.status !== 'resolved'
+      }).length,
+      active_resolvers: 1, // Current resolver
+      assigned_resolver_groups: 0,
+      // Resolver-specific
+      total_tickets_assigned: ticketData.length,
+      in_progress_tickets: ticketData.filter((t: any) => t.status === 'in_progress').length,
+      group_tickets: ticketData.filter((t: any) => t.assignment_type === 'group').length,
+      individual_tickets: ticketData.filter((t: any) => t.assignment_type === 'individual').length
+    }
+    console.log('Calculated statistics from tickets:', stats)
+    return stats
+  }
+  
+  const [statistics, setStatistics] = useState(calculateStatistics([]))
+  
+  // Calculate chart data from tickets data
+  const calculateChartData = (ticketData: any[]) => {
+    // Group tickets by date for chart
+    const ticketsByDate = ticketData.reduce((acc: any, ticket: any) => {
+      const date = new Date(ticket.created_at).toISOString().split('T')[0]
+      acc[date] = (acc[date] || 0) + 1
+      return acc
+    }, {})
+    
+    const chartData = Object.entries(ticketsByDate).map(([date, count]) => ({
+      date,
+      tickets: count as number,
+      resolved: ticketData.filter((t: any) => 
+        new Date(t.created_at).toISOString().split('T')[0] === date && 
+        t.status === 'resolved'
+      ).length
+    })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    
+    console.log('Calculated chart data from tickets:', chartData)
+    return chartData
+  }
+  
+  const [chartData, setChartData] = useState(calculateChartData([]))
 
+  // Update statistics and chart data when tickets change
   useEffect(() => {
-    if (!props.resolverData) {
-      fetchResolverData()
-    }
-  }, [])
+    setStatistics(calculateStatistics(tickets))
+    setChartData(calculateChartData(tickets))
+  }, [tickets])
 
-  // Fetch resolver data using Inertia
-  const fetchResolverData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // Use Inertia's router to reload with resolver data
-      router.reload({
-        only: ['resolverData'],
-        onSuccess: (page: any) => {
-          const resolverData = page.props.resolverData
-          if (resolverData) {
-            setStatistics({
-              ...resolverData.statistics,
-              total_tickets_to_resolve: resolverData.statistics.total_tickets_assigned || 0,
-              active_resolvers: 1, // Current resolver
-              assigned_resolver_groups: resolverData.statistics.group_tickets || 0
-            })
-            setChartData(resolverData.chartData || [])
-            setTickets(resolverData.tickets || [])
-          }
-        },
-        onError: (errors: any) => {
-          setError('Failed to load resolver data')
-        }
-      })
-      
-    } catch (error) {
-      console.error('Error fetching resolver data:', error)
-      setError('Failed to load resolver data. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+  // Function to receive tickets from My Tickets tab
+  const handleTicketsUpdate = (ticketData: any[]) => {
+    console.log('Resolver dashboard received tickets data:', ticketData.length)
+    setTickets(ticketData)
+    setLoading(false) // Data loaded, stop loading
+    setError(null) // Clear any errors
   }
 
-  // Refresh all resolver data
+  // Function to handle loading state from My Tickets tab
+  const handleLoadingState = (isLoading: boolean) => {
+    setLoading(isLoading)
+  }
+
+  // Function to handle error state from My Tickets tab
+  const handleErrorState = (errorMessage: string) => {
+    setError(errorMessage)
+    setLoading(false)
+  }
+
+  // Refresh function - triggers refetch in My Tickets tab
   const refreshResolverData = () => {
-    fetchResolverData()
+    // This will be handled by the My Tickets tab component
+    console.log('Refresh requested - will be handled by My Tickets tab')
   }
 
   return (
@@ -201,7 +219,11 @@ export default function ResolverDashboard() {
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
                   <div className="min-w-full">
-                    <ResolverMyTicketsTab />
+                    <ResolverMyTicketsTab 
+                    onTicketsUpdate={handleTicketsUpdate}
+                    onLoadingState={handleLoadingState}
+                    onErrorState={handleErrorState}
+                  />
                   </div>
                 </CardContent>
               </Card>
